@@ -14,7 +14,7 @@ interface SidebarProps {
   onTabChange: (tab: string) => void;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange }) => {
+const Sidebar = ({ activeTab, onTabChange }: SidebarProps) => {
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'register', label: 'Register Student', icon: UserPlus },
