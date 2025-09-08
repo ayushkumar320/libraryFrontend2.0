@@ -1,51 +1,93 @@
-import React, { useState, useEffect } from 'react';
-import { adminApi } from '../../services/api';
-import { SubscriptionPlan } from '../../types/api';
+import React, {useState, useEffect} from "react";
+import {X} from "lucide-react";
+import {adminApi} from "../../services/api";
+import {SubscriptionPlan} from "../../types/api";
 
 const RegistrationView: React.FC = () => {
   const [formData, setFormData] = useState({
-    fullName: '',
-    age: '',
-    subscriptionPlan: '',
-    joiningDate: '',
-    address: '',
-    adharNumber: '',
-    seatNumber: '',
+    fullName: "",
+    age: "",
+    subscriptionPlan: "",
+    joiningDate: "",
+    address: "",
+    adharNumber: "",
+    seatSection: "A",
+    seatNumber: "",
     feePaid: false,
+    isActive: true,
   });
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
-  const [availableSeats, setAvailableSeats] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
+
+  // Notification state
+  const [notification, setNotification] = useState<{
+    show: boolean;
+    type: "success" | "error";
+    message: string;
+  }>({
+    show: false,
+    type: "success",
+    message: "",
+  });
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [plansResponse, seatsResponse] = await Promise.all([
-          adminApi.getSubscriptionPlans(),
-          adminApi.getAvailableSeats(),
-        ]);
+        const plansResponse = await adminApi.getSubscriptionPlans();
         setPlans(plansResponse.data || []);
-        setAvailableSeats(seatsResponse.data || ['A-01', 'A-02', 'B-01', 'B-02']);
       } catch (error) {
-        console.error('Error fetching data:', error);
+        console.error("Error fetching data:", error);
         // Mock data
         setPlans([
-          { _id: '1', planName: 'Monthly', duration: 30, price: 1000, description: '30 days access', isActive: true },
-          { _id: '2', planName: 'Quarterly', duration: 90, price: 2700, description: '3 months access', isActive: true },
-          { _id: '3', planName: 'Yearly', duration: 365, price: 9000, description: '12 months access', isActive: true },
+          {
+            _id: "1",
+            planName: "Monthly",
+            duration: "30 Days",
+            price: 1000,
+            status: true,
+            subscribers: [],
+          },
+          {
+            _id: "2",
+            planName: "Quarterly",
+            duration: "90 Days",
+            price: 2700,
+            status: true,
+            subscribers: [],
+          },
+          {
+            _id: "3",
+            planName: "Yearly",
+            duration: "365 Days",
+            price: 9000,
+            status: true,
+            subscribers: [],
+          },
         ]);
-        setAvailableSeats(['A-01', 'A-02', 'B-01', 'B-02', 'C-01']);
       }
     };
 
     fetchData();
   }, []);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-    const { name, value, type } = e.target;
-    setFormData(prev => ({
+  // Show notification function
+  const showNotification = (type: "success" | "error", message: string) => {
+    setNotification({show: true, type, message});
+    setTimeout(() => {
+      setNotification((prev) => ({...prev, show: false}));
+    }, 4000);
+  };
+
+  const handleInputChange = (
+    e: React.ChangeEvent<
+      HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
+    >
+  ) => {
+    const {name, value, type} = e.target;
+    setFormData((prev) => ({
       ...prev,
-      [name]: type === 'checkbox' ? (e.target as HTMLInputElement).checked : value,
+      [name]:
+        type === "checkbox" ? (e.target as HTMLInputElement).checked : value,
     }));
   };
 
@@ -54,21 +96,32 @@ const RegistrationView: React.FC = () => {
     setLoading(true);
 
     try {
-      await adminApi.registerUser(formData);
-      alert('Student registered successfully!');
+      // Combine seat section and number
+      const fullSeatNumber = `${formData.seatSection}${formData.seatNumber}`;
+      const submitData = {
+        ...formData,
+        seatNumber: fullSeatNumber,
+      };
+      // Remove seatSection from submitData as backend doesn't need it
+      const {seatSection, ...dataForApi} = submitData;
+
+      await adminApi.registerUser(dataForApi);
+      showNotification("success", "Student registered successfully!");
       setFormData({
-        fullName: '',
-        age: '',
-        subscriptionPlan: '',
-        joiningDate: '',
-        address: '',
-        adharNumber: '',
-        seatNumber: '',
+        fullName: "",
+        age: "",
+        subscriptionPlan: "",
+        joiningDate: "",
+        address: "",
+        adharNumber: "",
+        seatSection: "A",
+        seatNumber: "",
         feePaid: false,
+        isActive: true,
       });
     } catch (error) {
-      console.error('Error registering student:', error);
-      alert('Error registering student. Please try again.');
+      console.error("Error registering student:", error);
+      showNotification("error", "Error registering student. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -78,7 +131,9 @@ const RegistrationView: React.FC = () => {
     <div className="p-6">
       <div className="max-w-2xl mx-auto">
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">Register New Student</h1>
+          <h1 className="text-2xl font-bold text-gray-900">
+            Register New Student
+          </h1>
         </div>
 
         <div className="bg-white rounded-lg border border-gray-200 p-6">
@@ -179,35 +234,62 @@ const RegistrationView: React.FC = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Seat Number
                 </label>
-                <select
-                  name="seatNumber"
-                  value={formData.seatNumber}
-                  onChange={handleInputChange}
-                  required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">A-01</option>
-                  {availableSeats.map((seat) => (
-                    <option key={seat} value={seat}>
-                      {seat}
-                    </option>
-                  ))}
-                </select>
+                <div className="flex space-x-2">
+                  <select
+                    name="seatSection"
+                    value={formData.seatSection}
+                    onChange={handleInputChange}
+                    required
+                    className="w-20 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="A">A</option>
+                    <option value="B">B</option>
+                  </select>
+                  <input
+                    type="number"
+                    name="seatNumber"
+                    value={formData.seatNumber}
+                    onChange={handleInputChange}
+                    placeholder="10"
+                    min="1"
+                    max="99"
+                    required
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  Example: A + 10 = A10
+                </p>
               </div>
             </div>
 
-            <div className="flex items-center">
-              <input
-                type="checkbox"
-                id="feePaid"
-                name="feePaid"
-                checked={formData.feePaid}
-                onChange={handleInputChange}
-                className="mr-2"
-              />
-              <label htmlFor="feePaid" className="text-sm text-gray-700">
-                Fee Paid
-              </label>
+            <div className="flex items-center space-x-6">
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  id="feePaid"
+                  name="feePaid"
+                  checked={formData.feePaid}
+                  onChange={handleInputChange}
+                  className="mr-2"
+                />
+                <label htmlFor="feePaid" className="text-sm text-gray-700">
+                  Fee Paid
+                </label>
+              </div>
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  id="isActive"
+                  name="isActive"
+                  checked={formData.isActive}
+                  onChange={handleInputChange}
+                  className="mr-2"
+                />
+                <label htmlFor="isActive" className="text-sm text-gray-700">
+                  Active
+                </label>
+              </div>
             </div>
 
             <button
@@ -215,11 +297,63 @@ const RegistrationView: React.FC = () => {
               disabled={loading}
               className="w-full bg-slate-800 text-white py-2 px-4 rounded-md hover:bg-slate-700 transition-colors disabled:opacity-50"
             >
-              {loading ? 'Registering...' : 'Register Student'}
+              {loading ? "Registering..." : "Register Student"}
             </button>
           </form>
         </div>
       </div>
+
+      {/* Notification Popup */}
+      {notification.show && (
+        <div className="fixed top-4 right-4 z-50 animate-slideIn">
+          <div
+            className={`px-6 py-4 rounded-lg shadow-lg flex items-center space-x-3 ${
+              notification.type === "success"
+                ? "bg-green-500 text-white"
+                : "bg-red-500 text-white"
+            }`}
+          >
+            <div className="flex-shrink-0">
+              {notification.type === "success" ? (
+                <svg
+                  className="w-5 h-5"
+                  fill="currentColor"
+                  viewBox="0 0 20 20"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+              ) : (
+                <svg
+                  className="w-5 h-5"
+                  fill="currentColor"
+                  viewBox="0 0 20 20"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+              )}
+            </div>
+            <div>
+              <p className="font-medium">{notification.message}</p>
+            </div>
+            <button
+              onClick={() =>
+                setNotification((prev) => ({...prev, show: false}))
+              }
+              className="flex-shrink-0 ml-4 text-white hover:text-gray-200 transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

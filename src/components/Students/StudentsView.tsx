@@ -1,93 +1,153 @@
-import React, { useState, useEffect } from 'react';
-import { Search, Filter, Eye, Edit, Trash2, Plus } from 'lucide-react';
-import { adminApi } from '../../services/api';
-import { Student } from '../../types/api';
+import React, {useState, useEffect} from "react";
+import {Search, Filter, Eye, Edit, Trash2, X} from "lucide-react";
+import {adminApi} from "../../services/api";
+import {Student, SubscriptionPlan} from "../../types/api";
 
 const StudentsView: React.FC = () => {
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [planFilter, setPlanFilter] = useState('All Plans');
-  const [statusFilter, setStatusFilter] = useState('All Status');
+  const [searchTerm, setSearchTerm] = useState("");
+  const [planFilter, setPlanFilter] = useState("All Plans");
+  const [statusFilter, setStatusFilter] = useState("All Status");
+
+  // Modal states
+  const [viewModalOpen, setViewModalOpen] = useState(false);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
+  const [editFormData, setEditFormData] = useState({
+    fullName: "",
+    age: "",
+    subscriptionPlan: "",
+    joiningDate: "",
+    address: "",
+    adharNumber: "",
+    seatSection: "A",
+    seatNumber: "",
+    feePaid: false,
+    isActive: true,
+  });
+  const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
+  const [editLoading, setEditLoading] = useState(false);
+
+  // Notification state
+  const [notification, setNotification] = useState<{
+    show: boolean;
+    type: "success" | "error";
+    message: string;
+  }>({
+    show: false,
+    type: "success",
+    message: "",
+  });
 
   useEffect(() => {
-    const fetchStudents = async () => {
+    const fetchData = async () => {
       try {
-        const response = await adminApi.getUsers();
-        setStudents(response.data || []);
+        const [studentsResponse, plansResponse] = await Promise.all([
+          adminApi.getUsers(),
+          adminApi.getSubscriptionPlans(),
+        ]);
+        setStudents(studentsResponse.data || []);
+        setPlans(plansResponse.data || []);
       } catch (error) {
-        console.error('Error fetching students:', error);
+        console.error("Error fetching data:", error);
         // Mock data for demonstration
         setStudents([
           {
-            _id: '1',
-            fullName: 'Rahul Sharma',
-            email: 'rahul@email.com',
+            _id: "1",
+            fullName: "Rahul Sharma",
+            email: "rahul@email.com",
             age: 22,
-            adharNumber: '1234567890',
-            address: 'Delhi',
-            seatNumber: 'A-15',
-            subscriptionPlan: 'Monthly',
-            joiningDate: '2025-01-15',
-            expiryDate: '2025-02-15',
-            feeStatus: 'Paid',
+            adharNumber: "1234567890",
+            address: "Delhi",
+            seatNumber: "A-15",
+            subscriptionPlan: "Monthly",
+            joiningDate: "2025-01-15",
+            expiryDate: "2025-02-15",
+            feeStatus: "Paid",
             isActive: true,
           },
           {
-            _id: '2',
-            fullName: 'Priya Singh',
-            email: 'priya@email.com',
+            _id: "2",
+            fullName: "Priya Singh",
+            email: "priya@email.com",
             age: 20,
-            adharNumber: '0987654321',
-            address: 'Mumbai',
-            seatNumber: 'B-08',
-            subscriptionPlan: 'Quarterly',
-            joiningDate: '2024-12-01',
-            expiryDate: '2025-03-01',
-            feeStatus: 'Pending',
+            adharNumber: "0987654321",
+            address: "Mumbai",
+            seatNumber: "B-08",
+            subscriptionPlan: "Quarterly",
+            joiningDate: "2024-12-01",
+            expiryDate: "2025-03-01",
+            feeStatus: "Pending",
             isActive: true,
           },
           {
-            _id: '3',
-            fullName: 'Amit Kumar',
-            email: 'amit@email.com',
+            _id: "3",
+            fullName: "Amit Kumar",
+            email: "amit@email.com",
             age: 24,
-            adharNumber: '1122334455',
-            address: 'Bangalore',
-            seatNumber: 'C-22',
-            subscriptionPlan: 'Yearly',
-            joiningDate: '2024-08-15',
-            expiryDate: '2025-08-15',
-            feeStatus: 'Paid',
+            adharNumber: "1122334455",
+            address: "Bangalore",
+            seatNumber: "C-22",
+            subscriptionPlan: "Yearly",
+            joiningDate: "2024-08-15",
+            expiryDate: "2025-08-15",
+            feeStatus: "Paid",
             isActive: true,
           },
           {
-            _id: '4',
-            fullName: 'Sneha Patel',
-            email: 'sneha@email.com',
+            _id: "4",
+            fullName: "Sneha Patel",
+            email: "sneha@email.com",
             age: 19,
-            adharNumber: '5566778899',
-            address: 'Pune',
-            seatNumber: 'A-03',
-            subscriptionPlan: 'Monthly',
-            joiningDate: '2025-02-01',
-            expiryDate: '2025-03-01',
-            feeStatus: 'Paid',
+            adharNumber: "5566778899",
+            address: "Pune",
+            seatNumber: "A-03",
+            subscriptionPlan: "Monthly",
+            joiningDate: "2025-02-01",
+            expiryDate: "2025-03-01",
+            feeStatus: "Paid",
             isActive: true,
           },
           {
-            _id: '5',
-            fullName: 'Vikash Yadav',
-            email: 'vikash@email.com',
+            _id: "5",
+            fullName: "Vikash Yadav",
+            email: "vikash@email.com",
             age: 23,
-            adharNumber: '9988776655',
-            address: 'Chennai',
-            seatNumber: 'D-11',
-            subscriptionPlan: 'Quarterly',
-            joiningDate: '2024-11-20',
-            expiryDate: '2025-02-20',
-            feeStatus: 'Overdue',
+            adharNumber: "9988776655",
+            address: "Chennai",
+            seatNumber: "D-11",
+            subscriptionPlan: "Quarterly",
+            joiningDate: "2024-11-20",
+            expiryDate: "2025-02-20",
+            feeStatus: "Overdue",
             isActive: true,
+          },
+        ]);
+        setPlans([
+          {
+            _id: "1",
+            planName: "Monthly",
+            duration: "30 Days",
+            price: 1000,
+            status: true,
+            subscribers: [],
+          },
+          {
+            _id: "2",
+            planName: "Quarterly",
+            duration: "90 Days",
+            price: 2700,
+            status: true,
+            subscribers: [],
+          },
+          {
+            _id: "3",
+            planName: "Yearly",
+            duration: "365 Days",
+            price: 9000,
+            status: true,
+            subscribers: [],
           },
         ]);
       } finally {
@@ -95,24 +155,134 @@ const StudentsView: React.FC = () => {
       }
     };
 
-    fetchStudents();
+    fetchData();
   }, []);
 
-  const filteredStudents = students.filter(student => {
-    const matchesSearch = student.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         student.email.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesPlan = planFilter === 'All Plans' || student.subscriptionPlan === planFilter;
-    const matchesStatus = statusFilter === 'All Status' || student.feeStatus === statusFilter;
-    
+  // Show notification function
+  const showNotification = (type: "success" | "error", message: string) => {
+    setNotification({show: true, type, message});
+    setTimeout(() => {
+      setNotification((prev) => ({...prev, show: false}));
+    }, 4000);
+  };
+
+  // Handler functions
+  const handleView = (student: Student) => {
+    setSelectedStudent(student);
+    setViewModalOpen(true);
+  };
+
+  const handleEdit = (student: Student) => {
+    setSelectedStudent(student);
+    // Parse seat number into section and number
+    const seatMatch = student.seatNumber.match(/([A-Z])(\d+)/);
+    const seatSection = seatMatch ? seatMatch[1] : "A";
+    const seatNumber = seatMatch ? seatMatch[2] : "";
+
+    setEditFormData({
+      fullName: student.fullName,
+      age: student.age.toString(),
+      subscriptionPlan: student.subscriptionPlan,
+      joiningDate: student.joiningDate.split("T")[0], // Format for date input
+      address: student.address,
+      adharNumber: student.adharNumber,
+      seatSection,
+      seatNumber,
+      feePaid: student.feeStatus === "Paid",
+      isActive: student.isActive,
+    });
+    setEditModalOpen(true);
+  };
+
+  const handleDelete = async (student: Student) => {
+    if (
+      window.confirm(`Are you sure you want to delete ${student.fullName}?`)
+    ) {
+      try {
+        await adminApi.deleteStudent(student.adharNumber);
+        setStudents(students.filter((s) => s._id !== student._id));
+        alert("Student deleted successfully!");
+      } catch (error) {
+        console.error("Error deleting student:", error);
+        alert("Error deleting student. Please try again.");
+      }
+    }
+  };
+
+  const handleEditInputChange = (
+    e: React.ChangeEvent<
+      HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
+    >
+  ) => {
+    const {name, value, type} = e.target;
+    setEditFormData((prev) => ({
+      ...prev,
+      [name]:
+        type === "checkbox" ? (e.target as HTMLInputElement).checked : value,
+    }));
+  };
+
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedStudent) return;
+
+    setEditLoading(true);
+    try {
+      // Combine seat section and number
+      const fullSeatNumber = `${editFormData.seatSection}${editFormData.seatNumber}`;
+      const submitData = {
+        ...editFormData,
+        seatNumber: fullSeatNumber,
+        age: parseInt(editFormData.age),
+        feeStatus: editFormData.feePaid ? "Paid" : "Pending",
+      };
+
+      // Remove form-specific fields
+      const {seatSection, feePaid, ...dataForApi} = submitData;
+
+      await adminApi.updateStudent(selectedStudent.adharNumber, dataForApi);
+
+      // Update local state
+      setStudents(
+        students.map((s) =>
+          s._id === selectedStudent._id
+            ? {...s, ...dataForApi, feeStatus: submitData.feeStatus as any}
+            : s
+        )
+      );
+
+      setEditModalOpen(false);
+      showNotification("success", "Student updated successfully!");
+    } catch (error) {
+      console.error("Error updating student:", error);
+      showNotification("error", "Error updating student. Please try again.");
+    } finally {
+      setEditLoading(false);
+    }
+  };
+
+  const filteredStudents = students.filter((student) => {
+    const matchesSearch =
+      student.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      student.email.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesPlan =
+      planFilter === "All Plans" || student.subscriptionPlan === planFilter;
+    const matchesStatus =
+      statusFilter === "All Status" || student.feeStatus === statusFilter;
+
     return matchesSearch && matchesPlan && matchesStatus;
   });
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'Paid': return 'bg-green-100 text-green-800';
-      case 'Pending': return 'bg-yellow-100 text-yellow-800';
-      case 'Overdue': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case "Paid":
+        return "bg-green-100 text-green-800";
+      case "Pending":
+        return "bg-yellow-100 text-yellow-800";
+      case "Overdue":
+        return "bg-red-100 text-red-800";
+      default:
+        return "bg-gray-100 text-gray-800";
     }
   };
 
@@ -134,15 +304,9 @@ const StudentsView: React.FC = () => {
 
   return (
     <div className="p-6">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">All Students</h1>
-          <p className="text-gray-600">Manage and view all registered students</p>
-        </div>
-        <button className="bg-slate-800 text-white px-4 py-2 rounded-lg hover:bg-slate-700 transition-colors flex items-center space-x-2">
-          <Plus className="w-4 h-4" />
-          <span>Add New Student</span>
-        </button>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-gray-900">All Students</h1>
+        <p className="text-gray-600">Manage and view all registered students</p>
       </div>
 
       <div className="bg-white rounded-lg border border-gray-200">
@@ -188,14 +352,30 @@ const StudentsView: React.FC = () => {
           <table className="w-full">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Student</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Age</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Seat</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Plan</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Joined</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Expires</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fee Status</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Student
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Age
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Seat
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Plan
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Joined
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Expires
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Fee Status
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Actions
+                </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
@@ -209,13 +389,21 @@ const StudentsView: React.FC = () => {
                         </span>
                       </div>
                       <div className="ml-3">
-                        <div className="text-sm font-medium text-gray-900">{student.fullName}</div>
-                        <div className="text-sm text-gray-500">{student.email}</div>
+                        <div className="text-sm font-medium text-gray-900">
+                          {student.fullName}
+                        </div>
+                        <div className="text-sm text-gray-500">
+                          {student.email}
+                        </div>
                       </div>
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{student.age}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{student.seatNumber}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {student.age}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {student.seatNumber}
+                  </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
                       {student.subscriptionPlan}
@@ -228,19 +416,32 @@ const StudentsView: React.FC = () => {
                     {new Date(student.expiryDate).toLocaleDateString()}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(student.feeStatus)}`}>
+                    <span
+                      className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(
+                        student.feeStatus
+                      )}`}
+                    >
                       {student.feeStatus}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <div className="flex items-center space-x-2">
-                      <button className="text-blue-600 hover:text-blue-900">
+                      <button
+                        onClick={() => handleView(student)}
+                        className="text-blue-600 hover:text-blue-900 transition-colors"
+                      >
                         <Eye className="w-4 h-4" />
                       </button>
-                      <button className="text-green-600 hover:text-green-900">
+                      <button
+                        onClick={() => handleEdit(student)}
+                        className="text-green-600 hover:text-green-900 transition-colors"
+                      >
                         <Edit className="w-4 h-4" />
                       </button>
-                      <button className="text-red-600 hover:text-red-900">
+                      <button
+                        onClick={() => handleDelete(student)}
+                        className="text-red-600 hover:text-red-900 transition-colors"
+                      >
                         <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
@@ -259,15 +460,397 @@ const StudentsView: React.FC = () => {
             <button className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50">
               Previous
             </button>
-            <button className="px-3 py-1 text-sm bg-slate-800 text-white rounded">1</button>
-            <button className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50">2</button>
-            <button className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50">3</button>
+            <button className="px-3 py-1 text-sm bg-slate-800 text-white rounded">
+              1
+            </button>
+            <button className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50">
+              2
+            </button>
+            <button className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50">
+              3
+            </button>
             <button className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50">
               Next
             </button>
           </div>
         </div>
       </div>
+
+      {/* View Student Modal */}
+      {viewModalOpen && selectedStudent && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 animate-fadeIn">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto transform transition-all duration-300 animate-slideIn">
+            <div className="p-6 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-semibold text-gray-900">
+                  Student Details
+                </h2>
+                <button
+                  onClick={() => setViewModalOpen(false)}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+            </div>
+            <div className="p-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Full Name
+                  </label>
+                  <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded">
+                    {selectedStudent.fullName}
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Age
+                  </label>
+                  <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded">
+                    {selectedStudent.age}
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Email
+                  </label>
+                  <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded">
+                    {selectedStudent.email}
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Seat Number
+                  </label>
+                  <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded">
+                    {selectedStudent.seatNumber}
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Subscription Plan
+                  </label>
+                  <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded">
+                    {selectedStudent.subscriptionPlan}
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Joining Date
+                  </label>
+                  <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded">
+                    {new Date(selectedStudent.joiningDate).toLocaleDateString()}
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Expiry Date
+                  </label>
+                  <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded">
+                    {new Date(selectedStudent.expiryDate).toLocaleDateString()}
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Fee Status
+                  </label>
+                  <span
+                    className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(
+                      selectedStudent.feeStatus
+                    )}`}
+                  >
+                    {selectedStudent.feeStatus}
+                  </span>
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Address
+                  </label>
+                  <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded">
+                    {selectedStudent.address}
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Aadhar Number
+                  </label>
+                  <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded">
+                    {selectedStudent.adharNumber}
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Status
+                  </label>
+                  <span
+                    className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                      selectedStudent.isActive
+                        ? "bg-green-100 text-green-800"
+                        : "bg-red-100 text-red-800"
+                    }`}
+                  >
+                    {selectedStudent.isActive ? "Active" : "Inactive"}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Student Modal */}
+      {editModalOpen && selectedStudent && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 animate-fadeIn">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto transform transition-all duration-300 animate-slideIn">
+            <div className="p-6 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-semibold text-gray-900">
+                  Edit Student
+                </h2>
+                <button
+                  onClick={() => setEditModalOpen(false)}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+            </div>
+            <div className="p-6">
+              <form onSubmit={handleEditSubmit} className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Full Name
+                    </label>
+                    <input
+                      type="text"
+                      name="fullName"
+                      value={editFormData.fullName}
+                      onChange={handleEditInputChange}
+                      required
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Age
+                    </label>
+                    <input
+                      type="number"
+                      name="age"
+                      value={editFormData.age}
+                      onChange={handleEditInputChange}
+                      required
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Subscription Plan
+                    </label>
+                    <select
+                      name="subscriptionPlan"
+                      value={editFormData.subscriptionPlan}
+                      onChange={handleEditInputChange}
+                      required
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">Select plan</option>
+                      {plans.map((plan) => (
+                        <option key={plan._id} value={plan.planName}>
+                          {plan.planName} - ₹{plan.price}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Joining Date
+                    </label>
+                    <input
+                      type="date"
+                      name="joiningDate"
+                      value={editFormData.joiningDate}
+                      onChange={handleEditInputChange}
+                      required
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Address
+                  </label>
+                  <textarea
+                    name="address"
+                    value={editFormData.address}
+                    onChange={handleEditInputChange}
+                    rows={3}
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Aadhar Number
+                    </label>
+                    <input
+                      type="text"
+                      name="adharNumber"
+                      value={editFormData.adharNumber}
+                      onChange={handleEditInputChange}
+                      required
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Seat Number
+                    </label>
+                    <div className="flex space-x-2">
+                      <select
+                        name="seatSection"
+                        value={editFormData.seatSection}
+                        onChange={handleEditInputChange}
+                        required
+                        className="w-20 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="A">A</option>
+                        <option value="B">B</option>
+                      </select>
+                      <input
+                        type="number"
+                        name="seatNumber"
+                        value={editFormData.seatNumber}
+                        onChange={handleEditInputChange}
+                        placeholder="10"
+                        min="1"
+                        max="99"
+                        required
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Example: A + 10 = A10
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center space-x-6">
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      id="editFeePaid"
+                      name="feePaid"
+                      checked={editFormData.feePaid}
+                      onChange={handleEditInputChange}
+                      className="mr-2"
+                    />
+                    <label
+                      htmlFor="editFeePaid"
+                      className="text-sm text-gray-700"
+                    >
+                      Fee Paid
+                    </label>
+                  </div>
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      id="editIsActive"
+                      name="isActive"
+                      checked={editFormData.isActive}
+                      onChange={handleEditInputChange}
+                      className="mr-2"
+                    />
+                    <label
+                      htmlFor="editIsActive"
+                      className="text-sm text-gray-700"
+                    >
+                      Active
+                    </label>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-end space-x-3 pt-6 border-t border-gray-200">
+                  <button
+                    type="button"
+                    onClick={() => setEditModalOpen(false)}
+                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={editLoading}
+                    className="px-4 py-2 text-sm font-medium text-white bg-slate-800 border border-transparent rounded-md hover:bg-slate-700 transition-colors disabled:opacity-50"
+                  >
+                    {editLoading ? "Updating..." : "Update Student"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Notification Popup */}
+      {notification.show && (
+        <div className="fixed top-4 right-4 z-50 animate-slideIn">
+          <div
+            className={`px-6 py-4 rounded-lg shadow-lg flex items-center space-x-3 ${
+              notification.type === "success"
+                ? "bg-green-500 text-white"
+                : "bg-red-500 text-white"
+            }`}
+          >
+            <div className="flex-shrink-0">
+              {notification.type === "success" ? (
+                <svg
+                  className="w-5 h-5"
+                  fill="currentColor"
+                  viewBox="0 0 20 20"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+              ) : (
+                <svg
+                  className="w-5 h-5"
+                  fill="currentColor"
+                  viewBox="0 0 20 20"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+              )}
+            </div>
+            <div>
+              <p className="font-medium">{notification.message}</p>
+            </div>
+            <button
+              onClick={() =>
+                setNotification((prev) => ({...prev, show: false}))
+              }
+              className="flex-shrink-0 ml-4 text-white hover:text-gray-200 transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

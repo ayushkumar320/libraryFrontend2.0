@@ -1,5 +1,5 @@
 import React, {useState, useEffect} from "react";
-import {Users, Armchair, Clock, IndianRupee} from "lucide-react";
+import {Users, Armchair, Clock} from "lucide-react";
 import StatsCard from "./StatsCard";
 import {adminApi} from "../../services/api";
 import {DashboardStats, Student} from "../../types/api";
@@ -9,7 +9,7 @@ const DashboardView: React.FC = () => {
     totalStudents: 0,
     availableSeats: 0,
     expiringSubscriptions: 0,
-    monthlyRevenue: 0,
+    activeStudents: 0,
   });
   const [expiringStudents, setExpiringStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
@@ -70,9 +70,9 @@ const DashboardView: React.FC = () => {
           color="orange"
         />
         <StatsCard
-          title="Monthly Revenue"
-          value={`₹${stats.monthlyRevenue?.toLocaleString() || "45,600"}`}
-          icon={IndianRupee}
+          title="Active Students"
+          value={stats.activeStudents || 128}
+          icon={Users}
           color="purple"
         />
       </div>
@@ -157,11 +157,19 @@ const DashboardView: React.FC = () => {
                 </select>
               </div>
             </div>
-            <div className="flex items-center">
-              <input type="checkbox" id="feePaid" className="mr-2" />
-              <label htmlFor="feePaid" className="text-sm text-gray-700">
-                Fee Paid
-              </label>
+            <div className="flex items-center space-x-6">
+              <div className="flex items-center">
+                <input type="checkbox" id="feePaid" className="mr-2" />
+                <label htmlFor="feePaid" className="text-sm text-gray-700">
+                  Fee Paid
+                </label>
+              </div>
+              <div className="flex items-center">
+                <input type="checkbox" id="isActive" className="mr-2" />
+                <label htmlFor="isActive" className="text-sm text-gray-700">
+                  Active
+                </label>
+              </div>
             </div>
             <button className="w-full bg-slate-800 text-white py-2 px-4 rounded-md hover:bg-slate-700 transition-colors">
               Register Student

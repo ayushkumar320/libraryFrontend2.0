@@ -62,6 +62,10 @@ export const adminApi = {
       method: "PUT",
       body: JSON.stringify(data),
     }),
+  deleteStudent: (adharNumber: string) =>
+    apiRequest<ApiResponse<{message: string}>>(`/student/${adharNumber}`, {
+      method: "DELETE",
+    }),
 
   // Subscription Plans
   getSubscriptionPlans: () =>

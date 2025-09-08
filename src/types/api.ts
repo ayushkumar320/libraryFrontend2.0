@@ -9,25 +9,24 @@ export interface Student {
   subscriptionPlan: string;
   joiningDate: string;
   expiryDate: string;
-  feeStatus: 'Paid' | 'Pending' | 'Overdue';
+  feeStatus: "Paid" | "Pending" | "Overdue";
   isActive: boolean;
 }
 
 export interface SubscriptionPlan {
   _id: string;
   planName: string;
-  duration: number;
+  duration: string;
   price: number;
-  description: string;
-  isActive: boolean;
-  subscribers?: number;
+  subscribers?: string[];
+  status: boolean;
 }
 
 export interface DashboardStats {
   totalStudents: number;
   availableSeats: number;
   expiringSubscriptions: number;
-  monthlyRevenue: number;
+  activeStudents: number;
 }
 
 export interface Seat {
@@ -37,7 +36,7 @@ export interface Seat {
   subscriptionPlan?: string;
   allocatedDate?: string;
   expiryDate?: string;
-  status: 'Available' | 'Occupied' | 'Maintenance';
+  status: "Available" | "Occupied" | "Maintenance";
 }
 
 export interface SeatManagement {
