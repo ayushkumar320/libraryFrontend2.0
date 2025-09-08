@@ -144,7 +144,7 @@ const SeatsView: React.FC = () => {
 
       // Calculate expiry date based on subscription plan
       const today = new Date();
-      let expiryDate = new Date(today);
+      const expiryDate = new Date(today);
 
       switch (allocationForm.subscriptionPlan) {
         case "Monthly":
@@ -177,7 +177,7 @@ const SeatsView: React.FC = () => {
           seat.seatNumber === selectedSeat
             ? {
                 ...seat,
-                status: "Occupied" as any,
+                status: "Occupied" as "Occupied",
                 studentId: selectedStudent._id,
                 studentName: selectedStudent.name,
                 subscriptionPlan: allocationForm.subscriptionPlan,
@@ -256,7 +256,7 @@ const SeatsView: React.FC = () => {
         ...prev,
         seats: prev.seats.map((seat) =>
           seat.seatNumber === seatNumber
-            ? {...seat, status: newStatus as any}
+            ? {...seat, status: newStatus as "Available" | "Occupied" | "Maintenance"}
             : seat
         ),
         maintenanceSeats:
@@ -472,6 +472,8 @@ const SeatsView: React.FC = () => {
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
             className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            title="Filter by seat status"
+            aria-label="Filter by seat status"
           >
             <option>All Status</option>
             <option>Occupied</option>
@@ -723,6 +725,8 @@ const SeatsView: React.FC = () => {
                     }
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     required
+                    title="Select student"
+                    aria-label="Select student"
                   >
                     <option value="">Select a student</option>
                     {students.map((student) => (
@@ -746,6 +750,8 @@ const SeatsView: React.FC = () => {
                     }
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     required
+                    title="Select subscription plan"
+                    aria-label="Select subscription plan"
                   >
                     <option value="">Select a plan</option>
                     <option value="Monthly">Monthly</option>
@@ -818,6 +824,8 @@ const SeatsView: React.FC = () => {
                       }))
                     }
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    title="Select seat section"
+                    aria-label="Select seat section"
                   >
                     <option value="A">Section A</option>
                     <option value="B">Section B</option>

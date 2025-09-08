@@ -3,7 +3,7 @@ import {Plus, Search, Edit, Trash2, TrendingUp, X} from "lucide-react";
 import {adminApi} from "../../services/api";
 import {SubscriptionPlan} from "../../types/api";
 
-const PlansView: React.FC = () => {
+const PlansView = () => {
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");

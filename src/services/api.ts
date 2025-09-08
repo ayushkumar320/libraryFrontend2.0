@@ -97,7 +97,7 @@ export const adminApi = {
       method: "POST",
       body: JSON.stringify(userData),
     }),
-  updateStudent: (adharNumber: string, data: any) =>
+  updateStudent: (adharNumber: string, data: Partial<Student>) =>
     apiRequest<ApiResponse<Student>>(`/student/${adharNumber}`, {
       method: "PUT",
       body: JSON.stringify(data),
@@ -114,7 +114,7 @@ export const adminApi = {
       method: "POST",
       body: JSON.stringify(planData),
     }),
-  updateSubscriptionPlan: (planData: any) =>
+  updateSubscriptionPlan: (planData: Partial<SubscriptionPlan>) =>
     apiRequest<ApiResponse<SubscriptionPlan>>("/subscription", {
       method: "PUT",
       body: JSON.stringify(planData),
@@ -134,7 +134,7 @@ export const adminApi = {
       method: "POST",
       body: JSON.stringify(seatData),
     }),
-  updateSeat: (seatNumber: string, data: any) =>
+  updateSeat: (seatNumber: string, data: Partial<Seat>) =>
     apiRequest<ApiResponse<Seat>>(`/seat/${seatNumber}`, {
       method: "PUT",
       body: JSON.stringify(data),
