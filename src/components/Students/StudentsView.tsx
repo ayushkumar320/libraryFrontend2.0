@@ -234,7 +234,7 @@ const StudentsView: React.FC = () => {
         ...editFormData,
         seatNumber: fullSeatNumber,
         age: parseInt(editFormData.age),
-        feeStatus: editFormData.feePaid ? "Paid" : "Pending",
+        feeStatus: editFormData.feePaid ? ("Paid" as "Paid" | "Pending" | "Overdue") : ("Pending" as "Paid" | "Pending" | "Overdue"),
       };
 
       // Remove form-specific fields
@@ -246,7 +246,7 @@ const StudentsView: React.FC = () => {
       setStudents(
         students.map((s) =>
           s._id === selectedStudent._id
-            ? {...s, ...dataForApi, feeStatus: submitData.feeStatus as any}
+            ? {...s, ...dataForApi, feeStatus: submitData.feeStatus}
             : s
         )
       );
@@ -342,7 +342,7 @@ const StudentsView: React.FC = () => {
               <option>Pending</option>
               <option>Overdue</option>
             </select>
-            <button className="p-2 text-gray-500 hover:text-gray-700 border border-gray-300 rounded-lg">
+            <button className="p-2 text-gray-500 hover:text-gray-700 border border-gray-300 rounded-lg" aria-label="Filter">
               <Filter className="w-5 h-5" />
             </button>
           </div>
@@ -429,18 +429,24 @@ const StudentsView: React.FC = () => {
                       <button
                         onClick={() => handleView(student)}
                         className="text-blue-600 hover:text-blue-900 transition-colors"
+                        aria-label={`View ${student.fullName}`}
+                        title={`View ${student.fullName}`}
                       >
                         <Eye className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => handleEdit(student)}
                         className="text-green-600 hover:text-green-900 transition-colors"
+                        aria-label={`Edit ${student.fullName}`}
+                        title={`Edit ${student.fullName}`}
                       >
                         <Edit className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => handleDelete(student)}
                         className="text-red-600 hover:text-red-900 transition-colors"
+                        aria-label={`Delete ${student.fullName}`}
+                        title={`Delete ${student.fullName}`}
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
