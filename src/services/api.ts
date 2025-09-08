@@ -52,12 +52,12 @@ export const adminApi = {
 
   // Students
   getUsers: () => apiRequest<ApiResponse<Student[]>>("/users"),
-  registerUser: (userData: any) =>
+  registerUser: (userData: Student) =>
     apiRequest<ApiResponse<Student>>("/register", {
       method: "POST",
       body: JSON.stringify(userData),
     }),
-  updateStudent: (adharNumber: string, data: any) =>
+  updateStudent: (adharNumber: string, data: Partial<Student>) =>
     apiRequest<ApiResponse<Student>>(`/student/${adharNumber}`, {
       method: "PUT",
       body: JSON.stringify(data),
@@ -70,12 +70,12 @@ export const adminApi = {
   // Subscription Plans
   getSubscriptionPlans: () =>
     apiRequest<ApiResponse<SubscriptionPlan[]>>("/subscriptions"),
-  createSubscriptionPlan: (planData: any) =>
+  createSubscriptionPlan: (planData: SubscriptionPlan) =>
     apiRequest<ApiResponse<SubscriptionPlan>>("/subscription", {
       method: "POST",
       body: JSON.stringify(planData),
     }),
-  updateSubscriptionPlan: (planData: any) =>
+  updateSubscriptionPlan: (planData: Partial<SubscriptionPlan>) =>
     apiRequest<ApiResponse<SubscriptionPlan>>("/subscription", {
       method: "PUT",
       body: JSON.stringify(planData),
@@ -88,12 +88,12 @@ export const adminApi = {
   getAvailableSeats: () => apiRequest<ApiResponse<Seat[]>>("/seats/available"),
   getSeatInfo: (seatNumber: string) =>
     apiRequest<ApiResponse<Seat>>(`/seat/${seatNumber}`),
-  addSeat: (seatData: any) =>
+  addSeat: (seatData: Seat) =>
     apiRequest<ApiResponse<Seat>>("/seat", {
       method: "POST",
       body: JSON.stringify(seatData),
     }),
-  updateSeat: (seatNumber: string, data: any) =>
+  updateSeat: (seatNumber: string, data: Partial<Seat>) =>
     apiRequest<ApiResponse<Seat>>(`/seat/${seatNumber}`, {
       method: "PUT",
       body: JSON.stringify(data),
