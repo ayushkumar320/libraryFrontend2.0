@@ -5,7 +5,8 @@ import {SubscriptionPlan} from "../../types/api";
 
 const RegistrationView: React.FC = () => {
   const [formData, setFormData] = useState({
-    fullName: "",
+    name: "",
+    idNumber: "",
     age: "",
     subscriptionPlan: "",
     joiningDate: "",
@@ -34,36 +35,15 @@ const RegistrationView: React.FC = () => {
     const fetchData = async () => {
       try {
         const plansResponse = await adminApi.getSubscriptionPlans();
-        setPlans(plansResponse.data || []);
+        // Handle direct array response from backend
+        setPlans(plansResponse || []);
       } catch (error) {
         console.error("Error fetching data:", error);
-        // Mock data
-        setPlans([
-          {
-            _id: "1",
-            planName: "Monthly",
-            duration: "30 Days",
-            price: 1000,
-            status: true,
-            subscribers: [],
-          },
-          {
-            _id: "2",
-            planName: "Quarterly",
-            duration: "90 Days",
-            price: 2700,
-            status: true,
-            subscribers: [],
-          },
-          {
-            _id: "3",
-            planName: "Yearly",
-            duration: "365 Days",
-            price: 9000,
-            status: true,
-            subscribers: [],
-          },
-        ]);
+        showNotification(
+          "error",
+          "Failed to fetch subscription plans from backend"
+        );
+        setPlans([]);
       }
     };
 
@@ -108,7 +88,8 @@ const RegistrationView: React.FC = () => {
       await adminApi.registerUser(dataForApi);
       showNotification("success", "Student registered successfully!");
       setFormData({
-        fullName: "",
+        name: "",
+        idNumber: "",
         age: "",
         subscriptionPlan: "",
         joiningDate: "",
@@ -141,12 +122,25 @@ const RegistrationView: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Full Name
+                  Name
                 </label>
                 <input
                   type="text"
-                  name="fullName"
-                  value={formData.fullName}
+                  name="name"
+                  value={formData.name}
+                  onChange={handleInputChange}
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  ID Number
+                </label>
+                <input
+                  type="number"
+                  name="idNumber"
+                  value={formData.idNumber}
                   onChange={handleInputChange}
                   required
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"

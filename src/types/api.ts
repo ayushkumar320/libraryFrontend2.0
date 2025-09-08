@@ -1,15 +1,14 @@
 export interface Student {
   _id: string;
-  fullName: string;
-  email: string;
-  age: number;
-  adharNumber: string;
-  address: string;
+  name: string; // Changed from fullName to match backend schema
+  idNumber: number; // Changed from email to match backend schema
+  age?: number; // Made optional to match backend schema
+  adharNumber: number; // Changed from string to number to match backend schema
+  address?: string; // Made optional to match backend schema
   seatNumber: string;
-  subscriptionPlan: string;
+  subscriptionPlan: string | SubscriptionPlan; // Can be ObjectId string or populated object
   joiningDate: string;
-  expiryDate: string;
-  feeStatus: "Paid" | "Pending" | "Overdue";
+  feePaid: boolean; // Changed from feeStatus to match backend schema
   isActive: boolean;
 }
 
@@ -18,15 +17,26 @@ export interface SubscriptionPlan {
   planName: string;
   duration: string;
   price: number;
-  subscribers?: string[];
+  subscribers?: string[]; // Array of User ObjectIds
+  status: boolean;
+}
+
+export interface SeatManagement {
+  _id?: string;
+  seatNumber: string;
+  student: string | Student; // ObjectId reference or populated object
+  plan: string | SubscriptionPlan; // ObjectId reference or populated object
+  allocationDate: string;
+  expirationDate: string;
   status: boolean;
 }
 
 export interface DashboardStats {
   totalStudents: number;
   availableSeats: number;
-  expiringSubscriptions: number;
-  activeStudents: number;
+  expiringSoon: number;
+  activeUsers: number;
+  totalPlans: number;
 }
 
 export interface Seat {
@@ -39,7 +49,7 @@ export interface Seat {
   status: "Available" | "Occupied" | "Maintenance";
 }
 
-export interface SeatManagement {
+export interface SeatManagementData {
   totalSeats: number;
   occupiedSeats: number;
   availableSeats: number;

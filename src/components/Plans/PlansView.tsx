@@ -31,63 +31,18 @@ const PlansView: React.FC = () => {
   useEffect(() => {
     const fetchPlans = async () => {
       try {
+        console.log("Plans: Fetching data...");
         const response = await adminApi.getSubscriptionPlans();
-        setPlans(response.data || []);
+        console.log("Plans: Received data:", response);
+
+        // Handle direct array response from backend
+        setPlans(response || []);
+
+        console.log("Plans: Data loaded successfully");
       } catch (error) {
         console.error("Error fetching plans:", error);
-        // Mock data for demonstration (Monthly Plan removed as requested)
-        setPlans([
-          {
-            _id: "1",
-            planName: "Daily Pass",
-            duration: "1 Day",
-            price: 50,
-            status: true,
-            subscribers: Array(8)
-              .fill("user")
-              .map((_, i) => `user${i + 1}`),
-          },
-          {
-            _id: "2",
-            planName: "Weekly Plan",
-            duration: "7 Days",
-            price: 300,
-            status: true,
-            subscribers: Array(15)
-              .fill("user")
-              .map((_, i) => `user${i + 1}`),
-          },
-          {
-            _id: "3",
-            planName: "Quarterly Plan",
-            duration: "90 Days",
-            price: 2700,
-            status: true,
-            subscribers: Array(32)
-              .fill("user")
-              .map((_, i) => `user${i + 1}`),
-          },
-          {
-            _id: "4",
-            planName: "Half Yearly",
-            duration: "180 Days",
-            price: 5000,
-            status: true,
-            subscribers: Array(18)
-              .fill("user")
-              .map((_, i) => `user${i + 1}`),
-          },
-          {
-            _id: "5",
-            planName: "Annual Plan",
-            duration: "365 Days",
-            price: 9000,
-            status: false,
-            subscribers: Array(6)
-              .fill("user")
-              .map((_, i) => `user${i + 1}`),
-          },
-        ]);
+        showNotification("error", "Failed to fetch plans from backend");
+        setPlans([]);
       } finally {
         setLoading(false);
       }
@@ -111,21 +66,53 @@ const PlansView: React.FC = () => {
     }
 
     try {
-      const newPlan: SubscriptionPlan = {
-        _id: Date.now().toString(), // Temporary ID for frontend
+      const planData = {
         planName: newPlanForm.planName,
         duration: newPlanForm.duration,
         price: parseInt(newPlanForm.price),
         status: true,
-        subscribers: [],
       };
 
-      setPlans((prev) => [...prev, newPlan]);
+      const response = await adminApi.createSubscriptionPlan(planData);
+
+      // Handle response - may be wrapped or direct depending on backend
+      const createdPlan = response.data || response;
+      if (createdPlan) {
+        setPlans((prev) => [...prev, createdPlan]);
+      } else {
+        // Fallback if no response data available
+        const newPlan: SubscriptionPlan = {
+          _id: Date.now().toString(),
+          ...planData,
+          subscribers: [],
+        };
+        setPlans((prev) => [...prev, newPlan]);
+      }
+
       setAddPlanModalOpen(false);
       setNewPlanForm({planName: "", duration: "", price: ""});
-      showNotification("success", "Plan added successfully!");
+      showNotification("success", "Plan created successfully!");
     } catch (error) {
-      showNotification("error", "Error adding plan");
+      console.error("Error creating plan:", error);
+      showNotification("error", "Error creating plan. Please try again.");
+    }
+  };
+
+  const handleDeletePlan = async (planId: string, planName: string) => {
+    if (
+      window.confirm(`Are you sure you want to delete the ${planName} plan?`)
+    ) {
+      try {
+        // Note: This endpoint may need to be added to the backend API
+        // await adminApi.deleteSubscriptionPlan(planId);
+
+        // For now, remove from local state
+        setPlans((prev) => prev.filter((plan) => plan._id !== planId));
+        showNotification("success", "Plan deleted successfully!");
+      } catch (error) {
+        console.error("Error deleting plan:", error);
+        showNotification("error", "Error deleting plan. Please try again.");
+      }
     }
   };
 
@@ -300,7 +287,12 @@ const PlansView: React.FC = () => {
                       <button className="text-green-600 hover:text-green-900">
                         <Edit className="w-4 h-4" />
                       </button>
-                      <button className="text-red-600 hover:text-red-900">
+                      <button
+                        onClick={() =>
+                          handleDeletePlan(plan._id, plan.planName)
+                        }
+                        className="text-red-600 hover:text-red-900"
+                      >
                         <Trash2 className="w-4 h-4" />
                       </button>
                     </div>

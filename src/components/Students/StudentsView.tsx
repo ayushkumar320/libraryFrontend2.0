@@ -43,113 +43,26 @@ const StudentsView: React.FC = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
+        console.log("Students: Fetching data...");
         const [studentsResponse, plansResponse] = await Promise.all([
           adminApi.getUsers(),
           adminApi.getSubscriptionPlans(),
         ]);
-        setStudents(studentsResponse.data || []);
-        setPlans(plansResponse.data || []);
+        console.log("Students: Received data:", {
+          studentsResponse,
+          plansResponse,
+        });
+
+        // Handle direct array responses from backend
+        setStudents(studentsResponse || []);
+        setPlans(plansResponse || []);
+
+        console.log("Students: Data loaded successfully");
       } catch (error) {
         console.error("Error fetching data:", error);
-        // Mock data for demonstration
-        setStudents([
-          {
-            _id: "1",
-            fullName: "Rahul Sharma",
-            email: "rahul@email.com",
-            age: 22,
-            adharNumber: "1234567890",
-            address: "Delhi",
-            seatNumber: "A-15",
-            subscriptionPlan: "Monthly",
-            joiningDate: "2025-01-15",
-            expiryDate: "2025-02-15",
-            feeStatus: "Paid",
-            isActive: true,
-          },
-          {
-            _id: "2",
-            fullName: "Priya Singh",
-            email: "priya@email.com",
-            age: 20,
-            adharNumber: "0987654321",
-            address: "Mumbai",
-            seatNumber: "B-08",
-            subscriptionPlan: "Quarterly",
-            joiningDate: "2024-12-01",
-            expiryDate: "2025-03-01",
-            feeStatus: "Pending",
-            isActive: true,
-          },
-          {
-            _id: "3",
-            fullName: "Amit Kumar",
-            email: "amit@email.com",
-            age: 24,
-            adharNumber: "1122334455",
-            address: "Bangalore",
-            seatNumber: "C-22",
-            subscriptionPlan: "Yearly",
-            joiningDate: "2024-08-15",
-            expiryDate: "2025-08-15",
-            feeStatus: "Paid",
-            isActive: true,
-          },
-          {
-            _id: "4",
-            fullName: "Sneha Patel",
-            email: "sneha@email.com",
-            age: 19,
-            adharNumber: "5566778899",
-            address: "Pune",
-            seatNumber: "A-03",
-            subscriptionPlan: "Monthly",
-            joiningDate: "2025-02-01",
-            expiryDate: "2025-03-01",
-            feeStatus: "Paid",
-            isActive: true,
-          },
-          {
-            _id: "5",
-            fullName: "Vikash Yadav",
-            email: "vikash@email.com",
-            age: 23,
-            adharNumber: "9988776655",
-            address: "Chennai",
-            seatNumber: "D-11",
-            subscriptionPlan: "Quarterly",
-            joiningDate: "2024-11-20",
-            expiryDate: "2025-02-20",
-            feeStatus: "Overdue",
-            isActive: true,
-          },
-        ]);
-        setPlans([
-          {
-            _id: "1",
-            planName: "Monthly",
-            duration: "30 Days",
-            price: 1000,
-            status: true,
-            subscribers: [],
-          },
-          {
-            _id: "2",
-            planName: "Quarterly",
-            duration: "90 Days",
-            price: 2700,
-            status: true,
-            subscribers: [],
-          },
-          {
-            _id: "3",
-            planName: "Yearly",
-            duration: "365 Days",
-            price: 9000,
-            status: true,
-            subscribers: [],
-          },
-        ]);
+        showNotification("error", "Failed to fetch data from backend");
+        setStudents([]);
+        setPlans([]);
       } finally {
         setLoading(false);
       }
@@ -180,31 +93,32 @@ const StudentsView: React.FC = () => {
     const seatNumber = seatMatch ? seatMatch[2] : "";
 
     setEditFormData({
-      fullName: student.fullName,
-      age: student.age.toString(),
-      subscriptionPlan: student.subscriptionPlan,
+      fullName: student.name,
+      age: student.age?.toString() || "",
+      subscriptionPlan:
+        typeof student.subscriptionPlan === "string"
+          ? student.subscriptionPlan
+          : student.subscriptionPlan.planName,
       joiningDate: student.joiningDate.split("T")[0], // Format for date input
-      address: student.address,
-      adharNumber: student.adharNumber,
+      address: student.address || "",
+      adharNumber: student.adharNumber.toString(),
       seatSection,
       seatNumber,
-      feePaid: student.feeStatus === "Paid",
+      feePaid: student.feePaid,
       isActive: student.isActive,
     });
     setEditModalOpen(true);
   };
 
   const handleDelete = async (student: Student) => {
-    if (
-      window.confirm(`Are you sure you want to delete ${student.fullName}?`)
-    ) {
+    if (window.confirm(`Are you sure you want to delete ${student.name}?`)) {
       try {
-        await adminApi.deleteStudent(student.adharNumber);
+        await adminApi.deleteStudent(student.adharNumber.toString());
         setStudents(students.filter((s) => s._id !== student._id));
-        alert("Student deleted successfully!");
+        showNotification("success", "Student deleted successfully!");
       } catch (error) {
         console.error("Error deleting student:", error);
-        alert("Error deleting student. Please try again.");
+        showNotification("error", "Error deleting student. Please try again.");
       }
     }
   };
@@ -231,23 +145,26 @@ const StudentsView: React.FC = () => {
       // Combine seat section and number
       const fullSeatNumber = `${editFormData.seatSection}${editFormData.seatNumber}`;
       const submitData = {
-        ...editFormData,
-        seatNumber: fullSeatNumber,
+        name: editFormData.fullName,
         age: parseInt(editFormData.age),
-        feeStatus: editFormData.feePaid ? "Paid" : "Pending",
+        address: editFormData.address,
+        adharNumber: parseInt(editFormData.adharNumber),
+        seatNumber: fullSeatNumber,
+        subscriptionPlan: editFormData.subscriptionPlan,
+        joiningDate: editFormData.joiningDate,
+        feePaid: editFormData.feePaid,
+        isActive: editFormData.isActive,
       };
 
-      // Remove form-specific fields
-      const {seatSection, feePaid, ...dataForApi} = submitData;
-
-      await adminApi.updateStudent(selectedStudent.adharNumber, dataForApi);
+      await adminApi.updateStudent(
+        selectedStudent.adharNumber.toString(),
+        submitData
+      );
 
       // Update local state
       setStudents(
         students.map((s) =>
-          s._id === selectedStudent._id
-            ? {...s, ...dataForApi, feeStatus: submitData.feeStatus as any}
-            : s
+          s._id === selectedStudent._id ? {...s, ...submitData} : s
         )
       );
 
@@ -263,12 +180,16 @@ const StudentsView: React.FC = () => {
 
   const filteredStudents = students.filter((student) => {
     const matchesSearch =
-      student.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      student.email.toLowerCase().includes(searchTerm.toLowerCase());
+      student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      student.idNumber.toString().includes(searchTerm.toLowerCase());
     const matchesPlan =
-      planFilter === "All Plans" || student.subscriptionPlan === planFilter;
+      planFilter === "All Plans" ||
+      (typeof student.subscriptionPlan === "string"
+        ? student.subscriptionPlan
+        : student.subscriptionPlan.planName) === planFilter;
     const matchesStatus =
-      statusFilter === "All Status" || student.feeStatus === statusFilter;
+      statusFilter === "All Status" ||
+      (student.feePaid ? "Paid" : "Pending") === statusFilter;
 
     return matchesSearch && matchesPlan && matchesStatus;
   });
@@ -385,15 +306,15 @@ const StudentsView: React.FC = () => {
                     <div className="flex items-center">
                       <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center">
                         <span className="text-sm font-medium text-gray-600">
-                          {student.fullName.charAt(0)}
+                          {student.name.charAt(0)}
                         </span>
                       </div>
                       <div className="ml-3">
                         <div className="text-sm font-medium text-gray-900">
-                          {student.fullName}
+                          {student.name}
                         </div>
                         <div className="text-sm text-gray-500">
-                          {student.email}
+                          ID: {student.idNumber}
                         </div>
                       </div>
                     </div>
@@ -406,22 +327,21 @@ const StudentsView: React.FC = () => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
-                      {student.subscriptionPlan}
+                      {typeof student.subscriptionPlan === "string"
+                        ? student.subscriptionPlan
+                        : student.subscriptionPlan.planName}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {new Date(student.joiningDate).toLocaleDateString()}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {new Date(student.expiryDate).toLocaleDateString()}
-                  </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span
                       className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(
-                        student.feeStatus
+                        student.feePaid ? "Paid" : "Pending"
                       )}`}
                     >
-                      {student.feeStatus}
+                      {student.feePaid ? "Paid" : "Pending"}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
@@ -497,10 +417,10 @@ const StudentsView: React.FC = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Full Name
+                    Name
                   </label>
                   <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded">
-                    {selectedStudent.fullName}
+                    {selectedStudent.name}
                   </p>
                 </div>
                 <div>
@@ -513,10 +433,10 @@ const StudentsView: React.FC = () => {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Email
+                    ID Number
                   </label>
                   <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded">
-                    {selectedStudent.email}
+                    {selectedStudent.idNumber}
                   </p>
                 </div>
                 <div>
@@ -532,7 +452,9 @@ const StudentsView: React.FC = () => {
                     Subscription Plan
                   </label>
                   <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded">
-                    {selectedStudent.subscriptionPlan}
+                    {typeof selectedStudent.subscriptionPlan === "string"
+                      ? selectedStudent.subscriptionPlan
+                      : selectedStudent.subscriptionPlan.planName}
                   </p>
                 </div>
                 <div>
@@ -543,24 +465,17 @@ const StudentsView: React.FC = () => {
                     {new Date(selectedStudent.joiningDate).toLocaleDateString()}
                   </p>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Expiry Date
-                  </label>
-                  <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded">
-                    {new Date(selectedStudent.expiryDate).toLocaleDateString()}
-                  </p>
-                </div>
+                {/* Expiry Date removed: not present in schema */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Fee Status
                   </label>
                   <span
                     className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(
-                      selectedStudent.feeStatus
+                      selectedStudent.feePaid ? "Paid" : "Pending"
                     )}`}
                   >
-                    {selectedStudent.feeStatus}
+                    {selectedStudent.feePaid ? "Paid" : "Pending"}
                   </span>
                 </div>
                 <div className="md:col-span-2">

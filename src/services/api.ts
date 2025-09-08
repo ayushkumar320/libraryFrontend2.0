@@ -5,53 +5,93 @@ import {
   DashboardStats,
   Student,
   SubscriptionPlan,
-  SeatManagement,
+  SeatManagementData,
   Seat,
   ApiResponse,
 } from "../types/api";
 
 // Get auth token from localStorage
-const getAuthToken = () => localStorage.getItem("adminToken");
+const getAuthToken = () => {
+  const token = localStorage.getItem("adminToken");
+  const cleanToken = token?.trim(); // Remove any whitespace
+  console.log(
+    "API: Getting token from localStorage:",
+    cleanToken
+      ? `Token present (${cleanToken.substring(0, 20)}...)`
+      : "No token found"
+  );
+  return cleanToken;
+};
 
 // API request helper
+let didHandleUnauthorized = false;
+
 const apiRequest = async <T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> => {
   const token = getAuthToken();
 
+  const authHeaders = token
+    ? {
+        Authorization: `Bearer ${token}`,
+        // Possible alternate header names some middleware might require
+        "x-auth-token": token,
+        token: token,
+      }
+    : {};
+
   const config: RequestInit = {
     ...options,
     headers: {
       "Content-Type": "application/json",
-      ...(token && {Authorization: `Bearer ${token}`}),
-      ...options.headers,
-    },
+      ...authHeaders,
+      ...(options.headers as Record<string, string>),
+    } as Record<string, string>,
   };
 
-  const response = await fetch(`${BASE_URL}${endpoint}`, config);
+  console.log(
+    `API: ${options.method || "GET"} ${endpoint} | token:`,
+    token ? "present" : "missing"
+  );
+
+  const response = await fetch(BASE_URL + endpoint, config);
 
   if (!response.ok) {
-    throw new Error(`API Error: ${response.status}`);
+    const errorText = await response.text();
+    console.error("API Error:", response.status, errorText);
+
+    // Handle specific error cases
+    if (response.status === 401) {
+      if (!didHandleUnauthorized) {
+        didHandleUnauthorized = true;
+        localStorage.removeItem("adminToken");
+        console.warn("API: 401 received, token cleared from storage");
+      }
+      throw new Error("Unauthorized - please login again");
+    }
+
+    throw new Error(`HTTP error! status: ${response.status}`);
   }
 
-  return response.json();
+  const data = await response.json();
+  return data;
 };
 
 export const adminApi = {
   // Auth
   login: (credentials: {email: string; password: string}) =>
-    apiRequest<ApiResponse<{token: string}>>("/login", {
+    apiRequest<{token: string}>("/login", {
       method: "POST",
       body: JSON.stringify(credentials),
     }),
 
-  // Dashboard
+  // Dashboard - returns data directly
   getDashboardStats: () =>
-    apiRequest<ApiResponse<DashboardStats>>("/dashboard"),
+    apiRequest<DashboardStats & {message: string}>("/dashboard"),
 
-  // Students
-  getUsers: () => apiRequest<ApiResponse<Student[]>>("/users"),
+  // Students - returns array directly
+  getUsers: () => apiRequest<Student[]>("/users"),
   registerUser: (userData: any) =>
     apiRequest<ApiResponse<Student>>("/register", {
       method: "POST",
@@ -67,9 +107,8 @@ export const adminApi = {
       method: "DELETE",
     }),
 
-  // Subscription Plans
-  getSubscriptionPlans: () =>
-    apiRequest<ApiResponse<SubscriptionPlan[]>>("/subscriptions"),
+  // Subscription Plans - returns array directly
+  getSubscriptionPlans: () => apiRequest<SubscriptionPlan[]>("/subscriptions"),
   createSubscriptionPlan: (planData: any) =>
     apiRequest<ApiResponse<SubscriptionPlan>>("/subscription", {
       method: "POST",
@@ -80,14 +119,16 @@ export const adminApi = {
       method: "PUT",
       body: JSON.stringify(planData),
     }),
+  // Subscription Ending - returns custom format
   getSubscriptionEndingPlan: () =>
-    apiRequest<ApiResponse<Student[]>>("/subscription-ending"),
+    apiRequest<{message: string; count: number; users: Student[]}>(
+      "/subscription-ending"
+    ),
 
-  // Seat Management
-  getSeatManagement: () => apiRequest<ApiResponse<SeatManagement>>("/seats"),
-  getAvailableSeats: () => apiRequest<ApiResponse<Seat[]>>("/seats/available"),
-  getSeatInfo: (seatNumber: string) =>
-    apiRequest<ApiResponse<Seat>>(`/seat/${seatNumber}`),
+  // Seat Management - returns data directly
+  getSeatManagement: () => apiRequest<SeatManagementData>("/seats"),
+  getAvailableSeats: () => apiRequest<Seat[]>("/seats/available"),
+  getSeatInfo: (seatNumber: string) => apiRequest<Seat>(`/seat/${seatNumber}`),
   addSeat: (seatData: any) =>
     apiRequest<ApiResponse<Seat>>("/seat", {
       method: "POST",

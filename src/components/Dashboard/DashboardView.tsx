@@ -1,45 +1,148 @@
 import React, {useState, useEffect} from "react";
-import {Users, Armchair, Clock} from "lucide-react";
+import {Users, Armchair, Clock, FileText} from "lucide-react";
 import StatsCard from "./StatsCard";
 import {adminApi} from "../../services/api";
-import {DashboardStats, Student} from "../../types/api";
+import {DashboardStats, Student, SubscriptionPlan} from "../../types/api";
 
 const DashboardView: React.FC = () => {
   const [stats, setStats] = useState<DashboardStats>({
     totalStudents: 0,
     availableSeats: 0,
-    expiringSubscriptions: 0,
-    activeStudents: 0,
+    expiringSoon: 0,
+    activeUsers: 0,
+    totalPlans: 0,
   });
   const [expiringStudents, setExpiringStudents] = useState<Student[]>([]);
+  const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
   const [loading, setLoading] = useState(true);
+  const [registrationForm, setRegistrationForm] = useState({
+    name: "", // Changed from fullName
+    idNumber: "", // Changed from email
+    age: "",
+    adharNumber: "", // Will be converted to number
+    address: "",
+    subscriptionPlan: "",
+    seatSection: "",
+    seatNumber: "",
+    feePaid: false,
+    isActive: false,
+  });
+
+  // Notification system
+  const [notification, setNotification] = useState<{
+    show: boolean;
+    type: "success" | "error";
+    message: string;
+  }>({show: false, type: "success", message: ""});
+
+  const showNotification = (type: "success" | "error", message: string) => {
+    setNotification({show: true, type, message});
+    setTimeout(() => {
+      setNotification({show: false, type: "success", message: ""});
+    }, 3000);
+  };
 
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
-        const [dashboardData, expiringData] = await Promise.all([
+        console.log("Dashboard: Fetching data...");
+        console.log(
+          "Dashboard: Token in localStorage:",
+          localStorage.getItem("adminToken") ? "Present" : "Missing"
+        );
+
+        const [dashboardData, expiringData, plansData] = await Promise.all([
           adminApi.getDashboardStats(),
           adminApi.getSubscriptionEndingPlan(),
+          adminApi.getSubscriptionPlans(),
         ]);
 
-        setStats(dashboardData.data);
-        setExpiringStudents(expiringData.data);
+        console.log("Dashboard: Received data:", {
+          dashboardData,
+          expiringData,
+          plansData,
+        });
+
+        setStats({
+          totalStudents: dashboardData.totalStudents || 0,
+          availableSeats: dashboardData.availableSeats || 0,
+          expiringSoon: dashboardData.expiringSoon || 0,
+          activeUsers: dashboardData.activeUsers || 0,
+          totalPlans: dashboardData.totalPlans || 0,
+        });
+        setExpiringStudents(expiringData.users || []);
+        setPlans(plansData || []);
+        console.log("Dashboard: Data loaded successfully");
       } catch (error) {
         console.error("Error fetching dashboard data:", error);
+        showNotification("error", "Error loading dashboard data");
       } finally {
         setLoading(false);
       }
     };
-
     fetchDashboardData();
   }, []);
+  const handleRegistrationSubmit = async () => {
+    if (
+      !registrationForm.name ||
+      !registrationForm.idNumber ||
+      !registrationForm.adharNumber
+    ) {
+      showNotification("error", "Please fill all required fields");
+      return;
+    }
+
+    try {
+      const userData = {
+        name: registrationForm.name,
+        idNumber: parseInt(registrationForm.idNumber),
+        age: parseInt(registrationForm.age),
+        adharNumber: parseInt(registrationForm.adharNumber),
+        address: registrationForm.address,
+        subscriptionPlan: registrationForm.subscriptionPlan,
+        seatNumber: registrationForm.seatSection + registrationForm.seatNumber,
+        feePaid: registrationForm.feePaid,
+        isActive: registrationForm.isActive,
+      };
+
+      await adminApi.registerUser(userData);
+      showNotification("success", "Student registered successfully!");
+
+      // Reset form
+      setRegistrationForm({
+        name: "",
+        idNumber: "",
+        age: "",
+        adharNumber: "",
+        address: "",
+        subscriptionPlan: "",
+        seatSection: "",
+        seatNumber: "",
+        feePaid: false,
+        isActive: false,
+      });
+
+      // Refresh dashboard data
+      const dashboardData = await adminApi.getDashboardStats();
+      setStats({
+        totalStudents: dashboardData.totalStudents,
+        availableSeats: dashboardData.availableSeats,
+        expiringSoon: dashboardData.expiringSoon,
+        activeUsers: dashboardData.activeUsers,
+        totalPlans: dashboardData.totalPlans,
+      });
+    } catch (error) {
+      console.error("Error registering student:", error);
+      showNotification("error", "Error registering student. Please try again.");
+    }
+  };
 
   if (loading) {
     return (
       <div className="p-6">
         <div className="animate-pulse">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            {[...Array(4)].map((_, i) => (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
+            {[...Array(5)].map((_, i) => (
               <div key={i} className="bg-gray-200 h-24 rounded-lg"></div>
             ))}
           </div>
@@ -50,30 +153,49 @@ const DashboardView: React.FC = () => {
 
   return (
     <div className="p-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      {/* Notification */}
+      {notification.show && (
+        <div
+          className={`fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg transition-all duration-300 ${
+            notification.type === "success"
+              ? "bg-green-500 text-white"
+              : "bg-red-500 text-white"
+          }`}
+        >
+          <span>{notification.message}</span>
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
         <StatsCard
           title="Total Students"
-          value={stats.totalStudents || 156}
+          value={stats.totalStudents || 0}
           icon={Users}
           color="blue"
         />
         <StatsCard
           title="Available Seats"
-          value={stats.availableSeats || 24}
+          value={stats.availableSeats || 0}
           icon={Armchair}
           color="green"
         />
         <StatsCard
           title="Expiring Soon"
-          value={stats.expiringSubscriptions || 8}
+          value={stats.expiringSoon || 0}
           icon={Clock}
           color="orange"
         />
         <StatsCard
-          title="Active Students"
-          value={stats.activeStudents || 128}
+          title="Active Users"
+          value={stats.activeUsers || 0}
           icon={Users}
           color="purple"
+        />
+        <StatsCard
+          title="Total Plans"
+          value={stats.totalPlans || 0}
+          icon={FileText}
+          color="blue"
         />
       </div>
 
@@ -91,16 +213,30 @@ const DashboardView: React.FC = () => {
                 <input
                   type="text"
                   placeholder="Enter full name"
+                  value={registrationForm.name}
+                  onChange={(e) =>
+                    setRegistrationForm((prev) => ({
+                      ...prev,
+                      name: e.target.value,
+                    }))
+                  }
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Age
+                  ID Number
                 </label>
                 <input
                   type="number"
-                  placeholder="Enter age"
+                  placeholder="Enter ID number"
+                  value={registrationForm.idNumber}
+                  onChange={(e) =>
+                    setRegistrationForm((prev) => ({
+                      ...prev,
+                      idNumber: e.target.value,
+                    }))
+                  }
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
@@ -108,21 +244,35 @@ const DashboardView: React.FC = () => {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Subscription Plan
+                  Age
                 </label>
-                <select className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                  <option>Select plan</option>
-                  <option>Monthly</option>
-                  <option>Quarterly</option>
-                  <option>Yearly</option>
-                </select>
+                <input
+                  type="number"
+                  placeholder="Enter age"
+                  value={registrationForm.age}
+                  onChange={(e) =>
+                    setRegistrationForm((prev) => ({
+                      ...prev,
+                      age: e.target.value,
+                    }))
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Joining Date
+                  Aadhar Number
                 </label>
                 <input
-                  type="date"
+                  type="number"
+                  placeholder="Enter Aadhar number"
+                  value={registrationForm.adharNumber}
+                  onChange={(e) =>
+                    setRegistrationForm((prev) => ({
+                      ...prev,
+                      adharNumber: e.target.value,
+                    }))
+                  }
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
@@ -132,46 +282,118 @@ const DashboardView: React.FC = () => {
                 Address
               </label>
               <textarea
-                placeholder="Enter complete address"
-                rows={3}
+                placeholder="Enter address"
+                value={registrationForm.address}
+                onChange={(e) =>
+                  setRegistrationForm((prev) => ({
+                    ...prev,
+                    address: e.target.value,
+                  }))
+                }
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                rows={2}
               />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Aadhar Number
+                  Subscription Plan
                 </label>
-                <input
-                  type="text"
-                  placeholder="Enter Aadhar number"
+                <select
+                  value={registrationForm.subscriptionPlan}
+                  onChange={(e) =>
+                    setRegistrationForm((prev) => ({
+                      ...prev,
+                      subscriptionPlan: e.target.value,
+                    }))
+                  }
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
+                >
+                  <option value="">Select plan</option>
+                  {plans.map((plan) => (
+                    <option key={plan._id} value={plan.planName}>
+                      {plan.planName}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Seat Section
+                </label>
+                <select
+                  value={registrationForm.seatSection}
+                  onChange={(e) =>
+                    setRegistrationForm((prev) => ({
+                      ...prev,
+                      seatSection: e.target.value,
+                    }))
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Select section</option>
+                  <option value="A">Section A</option>
+                  <option value="B">Section B</option>
+                </select>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Seat Number
                 </label>
-                <select className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                  <option>Select seat</option>
-                </select>
+                <input
+                  type="text"
+                  placeholder="Enter seat number"
+                  value={registrationForm.seatNumber}
+                  onChange={(e) =>
+                    setRegistrationForm((prev) => ({
+                      ...prev,
+                      seatNumber: e.target.value,
+                    }))
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
               </div>
             </div>
             <div className="flex items-center space-x-6">
               <div className="flex items-center">
-                <input type="checkbox" id="feePaid" className="mr-2" />
+                <input
+                  type="checkbox"
+                  id="feePaid"
+                  checked={registrationForm.feePaid}
+                  onChange={(e) =>
+                    setRegistrationForm((prev) => ({
+                      ...prev,
+                      feePaid: e.target.checked,
+                    }))
+                  }
+                  className="mr-2"
+                />
                 <label htmlFor="feePaid" className="text-sm text-gray-700">
                   Fee Paid
                 </label>
               </div>
               <div className="flex items-center">
-                <input type="checkbox" id="isActive" className="mr-2" />
+                <input
+                  type="checkbox"
+                  id="isActive"
+                  checked={registrationForm.isActive}
+                  onChange={(e) =>
+                    setRegistrationForm((prev) => ({
+                      ...prev,
+                      isActive: e.target.checked,
+                    }))
+                  }
+                  className="mr-2"
+                />
                 <label htmlFor="isActive" className="text-sm text-gray-700">
                   Active
                 </label>
               </div>
             </div>
-            <button className="w-full bg-slate-800 text-white py-2 px-4 rounded-md hover:bg-slate-700 transition-colors">
+            <button
+              onClick={handleRegistrationSubmit}
+              className="w-full bg-slate-800 text-white py-2 px-4 rounded-md hover:bg-slate-700 transition-colors"
+            >
               Register Student
             </button>
           </div>
@@ -193,12 +415,12 @@ const DashboardView: React.FC = () => {
                   <div className="flex items-center space-x-3">
                     <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center">
                       <span className="text-xs font-medium text-gray-600">
-                        {student.fullName?.charAt(0) || "U"}
+                        {student.name?.charAt(0) || "U"}
                       </span>
                     </div>
                     <div>
                       <p className="font-medium text-gray-900">
-                        {student.fullName || "Unknown"}
+                        {student.name || "Unknown"}
                       </p>
                       <p className="text-sm text-gray-500">
                         Seat: {student.seatNumber || "N/A"}
@@ -207,94 +429,18 @@ const DashboardView: React.FC = () => {
                   </div>
                   <div className="text-right">
                     <p className="text-sm font-medium text-gray-900">
-                      {student.expiryDate
-                        ? new Date(student.expiryDate).toLocaleDateString()
+                      {student.joiningDate
+                        ? new Date(student.joiningDate).toLocaleDateString()
                         : "N/A"}
                     </p>
-                    <p className="text-xs text-orange-600">3 days left</p>
+                    <p className="text-xs text-orange-600">Expiring Soon</p>
                   </div>
                 </div>
               ))
             ) : (
-              // Mock data for demonstration
-              <>
-                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center">
-                      <span className="text-xs font-medium text-gray-600">
-                        RS
-                      </span>
-                    </div>
-                    <div>
-                      <p className="font-medium text-gray-900">Rahul Sharma</p>
-                      <p className="text-sm text-gray-500">Seat: A-015</p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm font-medium text-gray-900">
-                      Jan 30, 2025
-                    </p>
-                    <p className="text-xs text-orange-600">3 days left</p>
-                  </div>
-                </div>
-                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center">
-                      <span className="text-xs font-medium text-gray-600">
-                        PP
-                      </span>
-                    </div>
-                    <div>
-                      <p className="font-medium text-gray-900">Priya Patel</p>
-                      <p className="text-sm text-gray-500">Seat: B-008</p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm font-medium text-gray-900">
-                      Feb 01, 2025
-                    </p>
-                    <p className="text-xs text-orange-600">5 days left</p>
-                  </div>
-                </div>
-                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center">
-                      <span className="text-xs font-medium text-gray-600">
-                        AK
-                      </span>
-                    </div>
-                    <div>
-                      <p className="font-medium text-gray-900">Amit Kumar</p>
-                      <p className="text-sm text-gray-500">Seat: C-012</p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm font-medium text-gray-900">
-                      Jan 29, 2025
-                    </p>
-                    <p className="text-xs text-orange-600">2 days left</p>
-                  </div>
-                </div>
-                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center">
-                      <span className="text-xs font-medium text-gray-600">
-                        SS
-                      </span>
-                    </div>
-                    <div>
-                      <p className="font-medium text-gray-900">Sneha Singh</p>
-                      <p className="text-sm text-gray-500">Seat: A-023</p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm font-medium text-gray-900">
-                      Jan 31, 2025
-                    </p>
-                    <p className="text-xs text-orange-600">4 days left</p>
-                  </div>
-                </div>
-              </>
+              <div className="text-center py-8 text-gray-500">
+                <p>No expiring subscriptions found</p>
+              </div>
             )}
           </div>
           <button className="w-full mt-4 text-sm text-blue-600 hover:text-blue-700 font-medium">

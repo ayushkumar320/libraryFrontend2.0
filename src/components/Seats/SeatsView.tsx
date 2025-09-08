@@ -1,10 +1,10 @@
 import React, {useState, useEffect} from "react";
 import {Search, Plus, User, CheckCircle, Wrench, X} from "lucide-react";
 import {adminApi} from "../../services/api";
-import {SeatManagement, Seat, Student} from "../../types/api";
+import {SeatManagementData, Student} from "../../types/api";
 
 const SeatsView: React.FC = () => {
-  const [seatData, setSeatData] = useState<SeatManagement>({
+  const [seatData, setSeatData] = useState<SeatManagementData>({
     totalSeats: 0,
     occupiedSeats: 0,
     availableSeats: 0,
@@ -47,103 +47,58 @@ const SeatsView: React.FC = () => {
     message: "",
   });
 
-  // Generate seats for sections A (1-66) and B (1-39)
-  const generateSeats = (): Seat[] => {
-    const seats: Seat[] = [];
-
-    // Section A: 1-66
-    for (let i = 1; i <= 66; i++) {
-      seats.push({
-        seatNumber: `A${i}`,
-        status:
-          Math.random() > 0.7
-            ? "Occupied"
-            : Math.random() > 0.9
-            ? "Maintenance"
-            : "Available",
-        studentName: Math.random() > 0.7 ? `Student ${i}` : undefined,
-        subscriptionPlan:
-          Math.random() > 0.7
-            ? ["Monthly", "Quarterly", "Yearly"][Math.floor(Math.random() * 3)]
-            : undefined,
-        allocatedDate: Math.random() > 0.7 ? "2025-01-15" : undefined,
-        expiryDate: Math.random() > 0.7 ? "2025-02-15" : undefined,
-      });
-    }
-
-    // Section B: 1-39
-    for (let i = 1; i <= 39; i++) {
-      seats.push({
-        seatNumber: `B${i}`,
-        status:
-          Math.random() > 0.7
-            ? "Occupied"
-            : Math.random() > 0.9
-            ? "Maintenance"
-            : "Available",
-        studentName: Math.random() > 0.7 ? `Student B${i}` : undefined,
-        subscriptionPlan:
-          Math.random() > 0.7
-            ? ["Monthly", "Quarterly", "Yearly"][Math.floor(Math.random() * 3)]
-            : undefined,
-        allocatedDate: Math.random() > 0.7 ? "2025-01-15" : undefined,
-        expiryDate: Math.random() > 0.7 ? "2025-02-15" : undefined,
-      });
-    }
-
-    return seats;
-  };
-
   useEffect(() => {
     const fetchData = async () => {
       try {
+        console.log("Seats: Fetching data...");
         const [seatResponse, studentsResponse] = await Promise.all([
           adminApi.getSeatManagement(),
           adminApi.getUsers(),
         ]);
+        console.log("Seats: Received data:", {seatResponse, studentsResponse});
 
-        // Use API data or generate mock data
-        const seats = seatResponse.data?.seats || generateSeats();
-        const occupiedSeats = seats.filter(
-          (s) => s.status === "Occupied"
-        ).length;
-        const availableSeats = seats.filter(
-          (s) => s.status === "Available"
-        ).length;
-        const maintenanceSeats = seats.filter(
-          (s) => s.status === "Maintenance"
-        ).length;
+        if (seatResponse?.seats) {
+          const seats = seatResponse.seats;
+          const occupiedSeats = seats.filter(
+            (s) => s.status === "Occupied"
+          ).length;
+          const availableSeats = seats.filter(
+            (s) => s.status === "Available"
+          ).length;
+          const maintenanceSeats = seats.filter(
+            (s) => s.status === "Maintenance"
+          ).length;
 
-        setSeatData({
-          totalSeats: seats.length,
-          occupiedSeats,
-          availableSeats,
-          maintenanceSeats,
-          seats,
-        });
+          setSeatData({
+            totalSeats: seats.length,
+            occupiedSeats,
+            availableSeats,
+            maintenanceSeats,
+            seats,
+          });
+        } else {
+          // No seat data available
+          setSeatData({
+            totalSeats: 0,
+            occupiedSeats: 0,
+            availableSeats: 0,
+            maintenanceSeats: 0,
+            seats: [],
+          });
+        }
 
-        setStudents(studentsResponse.data || []);
+        setStudents(studentsResponse || []);
       } catch (error) {
         console.error("Error fetching data:", error);
-        // Use generated mock data
-        const seats = generateSeats();
-        const occupiedSeats = seats.filter(
-          (s) => s.status === "Occupied"
-        ).length;
-        const availableSeats = seats.filter(
-          (s) => s.status === "Available"
-        ).length;
-        const maintenanceSeats = seats.filter(
-          (s) => s.status === "Maintenance"
-        ).length;
-
+        showNotification("error", "Failed to fetch data from backend");
         setSeatData({
-          totalSeats: seats.length,
-          occupiedSeats,
-          availableSeats,
-          maintenanceSeats,
-          seats,
+          totalSeats: 0,
+          occupiedSeats: 0,
+          availableSeats: 0,
+          maintenanceSeats: 0,
+          seats: [],
         });
+        setStudents([]);
       } finally {
         setLoading(false);
       }
@@ -203,7 +158,19 @@ const SeatsView: React.FC = () => {
           break;
       }
 
-      // Update seat data
+      // Update seat via API
+      const seatUpdateData = {
+        studentId: selectedStudent._id,
+        studentName: selectedStudent.name,
+        subscriptionPlan: allocationForm.subscriptionPlan,
+        allocatedDate: today.toISOString().split("T")[0],
+        expiryDate: expiryDate.toISOString().split("T")[0],
+        status: "Occupied",
+      };
+
+      await adminApi.updateSeat(selectedSeat, seatUpdateData);
+
+      // Update local state
       setSeatData((prev) => ({
         ...prev,
         seats: prev.seats.map((seat) =>
@@ -212,7 +179,7 @@ const SeatsView: React.FC = () => {
                 ...seat,
                 status: "Occupied" as any,
                 studentId: selectedStudent._id,
-                studentName: selectedStudent.fullName,
+                studentName: selectedStudent.name,
                 subscriptionPlan: allocationForm.subscriptionPlan,
                 allocatedDate: today.toISOString().split("T")[0],
                 expiryDate: expiryDate.toISOString().split("T")[0],
@@ -223,16 +190,9 @@ const SeatsView: React.FC = () => {
         availableSeats: prev.availableSeats - 1,
       }));
 
-      // TODO: Make API call to update backend
-      // await adminApi.updateSeat(selectedSeat, {
-      //   studentId: selectedStudent._id,
-      //   subscriptionPlan: allocationForm.subscriptionPlan,
-      //   status: 'Occupied'
-      // });
-
       showNotification(
         "success",
-        `Seat ${selectedSeat} allocated to ${selectedStudent.fullName} successfully!`
+        `Seat ${selectedSeat} allocated to ${selectedStudent.name} successfully!`
       );
       setAllocateModalOpen(false);
       setAllocationForm({studentId: "", subscriptionPlan: ""});
@@ -247,6 +207,17 @@ const SeatsView: React.FC = () => {
   const handleDeallocateSeat = async (seatNumber: string) => {
     if (window.confirm("Are you sure you want to deallocate this seat?")) {
       try {
+        // Call API to update seat status
+        await adminApi.updateSeat(seatNumber, {
+          status: "Available",
+          studentId: null,
+          studentName: null,
+          subscriptionPlan: null,
+          allocatedDate: null,
+          expiryDate: null,
+        });
+
+        // Update local state
         setSeatData((prev) => ({
           ...prev,
           seats: prev.seats.map((seat) =>
@@ -756,7 +727,7 @@ const SeatsView: React.FC = () => {
                     <option value="">Select a student</option>
                     {students.map((student) => (
                       <option key={student._id} value={student._id}>
-                        {student.fullName} - {student.email}
+                        {student.name} - ID: {student.idNumber}
                       </option>
                     ))}
                   </select>
