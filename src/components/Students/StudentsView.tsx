@@ -15,7 +15,7 @@ const StudentsView: React.FC = () => {
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [editFormData, setEditFormData] = useState({
-    fullName: "",
+    name: "",
     age: "",
     subscriptionPlan: "",
     joiningDate: "",
@@ -43,21 +43,23 @@ const StudentsView: React.FC = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        console.log("Students: Fetching data...");
+        if (import.meta.env.DEV) console.log("Students: Fetching data...");
         const [studentsResponse, plansResponse] = await Promise.all([
           adminApi.getUsers(),
           adminApi.getSubscriptionPlans(),
         ]);
-        console.log("Students: Received data:", {
-          studentsResponse,
-          plansResponse,
-        });
+        if (import.meta.env.DEV)
+          console.log("Students: Received data:", {
+            studentsResponse,
+            plansResponse,
+          });
 
         // Handle direct array responses from backend
         setStudents(studentsResponse || []);
         setPlans(plansResponse || []);
 
-        console.log("Students: Data loaded successfully");
+        if (import.meta.env.DEV)
+          console.log("Students: Data loaded successfully");
       } catch (error) {
         console.error("Error fetching data:", error);
         showNotification("error", "Failed to fetch data from backend");
@@ -93,12 +95,12 @@ const StudentsView: React.FC = () => {
     const seatNumber = seatMatch ? seatMatch[2] : "";
 
     setEditFormData({
-      fullName: student.name,
+      name: student.name,
       age: student.age?.toString() || "",
       subscriptionPlan:
         typeof student.subscriptionPlan === "string"
           ? student.subscriptionPlan
-          : student.subscriptionPlan.planName,
+          : student.subscriptionPlan._id,
       joiningDate: student.joiningDate.split("T")[0], // Format for date input
       address: student.address || "",
       adharNumber: student.adharNumber.toString(),
@@ -145,31 +147,31 @@ const StudentsView: React.FC = () => {
       // Combine seat section and number
       const fullSeatNumber = `${editFormData.seatSection}${editFormData.seatNumber}`;
       const submitData = {
-        name: editFormData.fullName,
+        name: editFormData.name,
         age: parseInt(editFormData.age),
         address: editFormData.address,
         adharNumber: parseInt(editFormData.adharNumber),
         seatNumber: fullSeatNumber,
-        subscriptionPlan: editFormData.subscriptionPlan,
+        subscriptionPlan: editFormData.subscriptionPlan, // send ObjectId
         joiningDate: editFormData.joiningDate,
         feePaid: editFormData.feePaid,
         isActive: editFormData.isActive,
       };
 
-      await adminApi.updateStudent(
+      const response = await adminApi.updateStudent(
         selectedStudent.adharNumber.toString(),
         submitData
       );
 
-      // Update local state
-      setStudents(
-        students.map((s) =>
-          s._id === selectedStudent._id ? {...s, ...submitData} : s
-        )
-      );
+      // Backend returns {name, adharNumber, message} - refresh the student list
+      const updatedStudents = await adminApi.getUsers();
+      setStudents(updatedStudents || []);
 
       setEditModalOpen(false);
-      showNotification("success", "Student updated successfully!");
+      showNotification(
+        "success",
+        response.message || "Student updated successfully!"
+      );
     } catch (error) {
       console.error("Error updating student:", error);
       showNotification("error", "Error updating student. Please try again.");
@@ -249,9 +251,11 @@ const StudentsView: React.FC = () => {
               className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option>All Plans</option>
-              <option>Monthly</option>
-              <option>Quarterly</option>
-              <option>Yearly</option>
+              {plans.map((plan) => (
+                <option key={plan._id} value={plan.planName}>
+                  {plan.planName}
+                </option>
+              ))}
             </select>
             <select
               value={statusFilter}
@@ -263,7 +267,10 @@ const StudentsView: React.FC = () => {
               <option>Pending</option>
               <option>Overdue</option>
             </select>
-            <button className="p-2 text-gray-500 hover:text-gray-700 border border-gray-300 rounded-lg" aria-label="Filter">
+            <button
+              className="p-2 text-gray-500 hover:text-gray-700 border border-gray-300 rounded-lg"
+              aria-label="Filter"
+            >
               <Filter className="w-5 h-5" />
             </button>
           </div>
@@ -349,24 +356,24 @@ const StudentsView: React.FC = () => {
                       <button
                         onClick={() => handleView(student)}
                         className="text-blue-600 hover:text-blue-900 transition-colors"
-                        aria-label={`View ${student.fullName}`}
-                        title={`View ${student.fullName}`}
+                        aria-label={`View ${student.name}`}
+                        title={`View ${student.name}`}
                       >
                         <Eye className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => handleEdit(student)}
                         className="text-green-600 hover:text-green-900 transition-colors"
-                        aria-label={`Edit ${student.fullName}`}
-                        title={`Edit ${student.fullName}`}
+                        aria-label={`Edit ${student.name}`}
+                        title={`Edit ${student.name}`}
                       >
                         <Edit className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => handleDelete(student)}
                         className="text-red-600 hover:text-red-900 transition-colors"
-                        aria-label={`Delete ${student.fullName}`}
-                        title={`Delete ${student.fullName}`}
+                        aria-label={`Delete ${student.name}`}
+                        title={`Delete ${student.name}`}
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -546,8 +553,8 @@ const StudentsView: React.FC = () => {
                     </label>
                     <input
                       type="text"
-                      name="fullName"
-                      value={editFormData.fullName}
+                      name="name"
+                      value={editFormData.name}
                       onChange={handleEditInputChange}
                       required
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -582,7 +589,7 @@ const StudentsView: React.FC = () => {
                     >
                       <option value="">Select plan</option>
                       {plans.map((plan) => (
-                        <option key={plan._id} value={plan.planName}>
+                        <option key={plan._id} value={plan._id}>
                           {plan.planName} - ₹{plan.price}
                         </option>
                       ))}

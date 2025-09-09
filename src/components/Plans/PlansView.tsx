@@ -1,4 +1,4 @@
-import React, {useState, useEffect} from "react";
+import {useState, useEffect} from "react";
 import {Plus, Search, Edit, Trash2, TrendingUp, X} from "lucide-react";
 import {adminApi} from "../../services/api";
 import {SubscriptionPlan} from "../../types/api";
@@ -8,10 +8,18 @@ const PlansView = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [addPlanModalOpen, setAddPlanModalOpen] = useState(false);
+  const [editPlanModalOpen, setEditPlanModalOpen] = useState(false);
+  const [editingPlan, setEditingPlan] = useState<SubscriptionPlan | null>(null);
   const [newPlanForm, setNewPlanForm] = useState({
     planName: "",
     duration: "",
     price: "",
+  });
+  const [editPlanForm, setEditPlanForm] = useState({
+    planName: "",
+    duration: "",
+    price: "",
+    status: true,
   });
 
   // Notification system
@@ -31,14 +39,10 @@ const PlansView = () => {
   useEffect(() => {
     const fetchPlans = async () => {
       try {
-        console.log("Plans: Fetching data...");
+        if (import.meta.env.DEV) console.log("Plans: Fetching data...");
         const response = await adminApi.getSubscriptionPlans();
-        console.log("Plans: Received data:", response);
-
-        // Handle direct array response from backend
+        if (import.meta.env.DEV) console.log("Plans: Received data:", response);
         setPlans(response || []);
-
-        console.log("Plans: Data loaded successfully");
       } catch (error) {
         console.error("Error fetching plans:", error);
         showNotification("error", "Failed to fetch plans from backend");
@@ -47,7 +51,6 @@ const PlansView = () => {
         setLoading(false);
       }
     };
-
     fetchPlans();
   }, []);
 
@@ -66,35 +69,71 @@ const PlansView = () => {
     }
 
     try {
+      setLoading(true);
       const planData = {
         planName: newPlanForm.planName,
         duration: newPlanForm.duration,
         price: parseInt(newPlanForm.price),
         status: true,
       };
-
-      const response = await adminApi.createSubscriptionPlan(planData);
-
-      // Handle response - may be wrapped or direct depending on backend
-      const createdPlan = response.data || response;
-      if (createdPlan) {
-        setPlans((prev) => [...prev, createdPlan]);
-      } else {
-        // Fallback if no response data available
-        const newPlan: SubscriptionPlan = {
-          _id: Date.now().toString(),
-          ...planData,
-          subscribers: [],
-        };
-        setPlans((prev) => [...prev, newPlan]);
-      }
-
+      const response = await adminApi.createSubscriptionPlan(planData); // {message, planName}
+      if (import.meta.env.DEV) console.log("Plan created:", response);
+      // Refetch plans to get authoritative list
+      const updated = await adminApi.getSubscriptionPlans();
+      setPlans(updated || []);
       setAddPlanModalOpen(false);
       setNewPlanForm({planName: "", duration: "", price: ""});
-      showNotification("success", "Plan created successfully!");
+      showNotification(
+        "success",
+        response.message || "Plan created successfully!"
+      );
     } catch (error) {
       console.error("Error creating plan:", error);
       showNotification("error", "Error creating plan. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEditPlan = (plan: SubscriptionPlan) => {
+    setEditingPlan(plan);
+    setEditPlanForm({
+      planName: plan.planName,
+      duration: plan.duration,
+      price: plan.price.toString(),
+      status: plan.status,
+    });
+    setEditPlanModalOpen(true);
+  };
+
+  const handleUpdatePlan = async () => {
+    if (!editingPlan || !editPlanForm.planName || !editPlanForm.duration || !editPlanForm.price) {
+      showNotification("error", "Please fill all fields");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const planData = {
+        planName: editPlanForm.planName,
+        duration: editPlanForm.duration,
+        price: parseInt(editPlanForm.price),
+        status: editPlanForm.status,
+      };
+      const response = await adminApi.updateSubscriptionPlan(planData);
+      if (import.meta.env.DEV) console.log("Plan updated:", response);
+      // Refetch plans to get authoritative list
+      const updated = await adminApi.getSubscriptionPlans();
+      setPlans(updated || []);
+      setEditPlanModalOpen(false);
+      setEditingPlan(null);
+      setEditPlanForm({planName: "", duration: "", price: "", status: true});
+      showNotification("success", response.message || "Plan updated successfully!");
+    } catch (error) {
+      console.error("Error updating plan:", error);
+      showNotification("error", "Error updating plan. Please try again.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -103,15 +142,18 @@ const PlansView = () => {
       window.confirm(`Are you sure you want to delete the ${planName} plan?`)
     ) {
       try {
-        // Note: This endpoint may need to be added to the backend API
-        // await adminApi.deleteSubscriptionPlan(planId);
-
-        // For now, remove from local state
-        setPlans((prev) => prev.filter((plan) => plan._id !== planId));
-        showNotification("success", "Plan deleted successfully!");
+        setLoading(true);
+        const response = await adminApi.deleteSubscriptionPlan(planId);
+        if (import.meta.env.DEV) console.log("Plan deleted:", response);
+        // Refetch plans to get authoritative list
+        const updated = await adminApi.getSubscriptionPlans();
+        setPlans(updated || []);
+        showNotification("success", response.message || "Plan deleted successfully!");
       } catch (error) {
         console.error("Error deleting plan:", error);
         showNotification("error", "Error deleting plan. Please try again.");
+      } finally {
+        setLoading(false);
       }
     }
   };
@@ -284,7 +326,11 @@ const PlansView = () => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <div className="flex items-center space-x-2">
-                      <button className="text-green-600 hover:text-green-900">
+                      <button 
+                        onClick={() => handleEditPlan(plan)}
+                        className="text-green-600 hover:text-green-900"
+                        title="Edit plan"
+                      >
                         <Edit className="w-4 h-4" />
                       </button>
                       <button
@@ -292,6 +338,7 @@ const PlansView = () => {
                           handleDeletePlan(plan._id, plan.planName)
                         }
                         className="text-red-600 hover:text-red-900"
+                        title="Delete plan"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -406,6 +453,125 @@ const PlansView = () => {
                   className="px-4 py-2 text-sm font-medium text-white bg-slate-800 border border-transparent rounded-md hover:bg-slate-700 transition-colors"
                 >
                   Add Plan
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Plan Modal */}
+      {editPlanModalOpen && editingPlan && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 animate-fadeIn">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 transform transition-all duration-300 animate-slideIn">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Edit Plan: {editingPlan.planName}
+                </h3>
+                <button
+                  onClick={() => {
+                    setEditPlanModalOpen(false);
+                    setEditingPlan(null);
+                    setEditPlanForm({planName: "", duration: "", price: "", status: true});
+                  }}
+                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  <X className="w-5 h-5 text-gray-500" />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Plan Name
+                  </label>
+                  <input
+                    type="text"
+                    value={editPlanForm.planName}
+                    onChange={(e) =>
+                      setEditPlanForm((prev) => ({
+                        ...prev,
+                        planName: e.target.value,
+                      }))
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Enter plan name"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Duration
+                  </label>
+                  <input
+                    type="text"
+                    value={editPlanForm.duration}
+                    onChange={(e) =>
+                      setEditPlanForm((prev) => ({
+                        ...prev,
+                        duration: e.target.value,
+                      }))
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="e.g., 30 Days, 3 Months"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Price (₹)
+                  </label>
+                  <input
+                    type="number"
+                    value={editPlanForm.price}
+                    onChange={(e) =>
+                      setEditPlanForm((prev) => ({
+                        ...prev,
+                        price: e.target.value,
+                      }))
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Enter price"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Status
+                  </label>
+                  <select
+                    value={editPlanForm.status ? "active" : "inactive"}
+                    onChange={(e) =>
+                      setEditPlanForm((prev) => ({
+                        ...prev,
+                        status: e.target.value === "active",
+                      }))
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end space-x-3 mt-6">
+                <button
+                  onClick={() => {
+                    setEditPlanModalOpen(false);
+                    setEditingPlan(null);
+                    setEditPlanForm({planName: "", duration: "", price: "", status: true});
+                  }}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleUpdatePlan}
+                  className="px-4 py-2 text-sm font-medium text-white bg-slate-800 border border-transparent rounded-md hover:bg-slate-700 transition-colors"
+                >
+                  Update Plan
                 </button>
               </div>
             </div>

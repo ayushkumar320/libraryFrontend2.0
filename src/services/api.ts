@@ -1,25 +1,38 @@
-const BASE_URL =
-  "https://project-beta-backend-library-manage.vercel.app/api/admin";
+// Resolve BASE_URL with priority: env var -> same-origin relative -> local dev fallback
+let BASE_URL = (import.meta as any).env?.VITE_API_BASE?.replace(/\/$/, "");
+if (!BASE_URL) {
+  if (import.meta.env.DEV) {
+    // Assume local backend default port if not provided
+    BASE_URL =
+      "https://project-beta-backend-library-manage.vercel.app/api/admin";
+  } else {
+    // Production relative (assumes reverse proxy /api/admin)
+    BASE_URL = "/api/admin";
+  }
+}
+if (import.meta.env.DEV) console.log("API: Using BASE_URL =", BASE_URL);
 
 import {
   DashboardStats,
   Student,
   SubscriptionPlan,
   SeatManagementData,
-  Seat,
-  ApiResponse,
+  SeatManagementApiResponse,
+  ExpiringUser,
 } from "../types/api";
 
 // Get auth token from localStorage
 const getAuthToken = () => {
   const token = localStorage.getItem("adminToken");
   const cleanToken = token?.trim(); // Remove any whitespace
-  console.log(
-    "API: Getting token from localStorage:",
-    cleanToken
-      ? `Token present (${cleanToken.substring(0, 20)}...)`
-      : "No token found"
-  );
+  if (import.meta.env.DEV) {
+    console.log(
+      "API: Getting token from localStorage:",
+      cleanToken
+        ? `Token present (${cleanToken.substring(0, 20)}...)`
+        : "No token found"
+    );
+  }
   return cleanToken;
 };
 
@@ -45,35 +58,69 @@ const apiRequest = async <T>(
     } as Record<string, string>,
   };
 
-  console.log(
-    `API: ${options.method || "GET"} ${endpoint} | token:`,
-    token ? "present" : "missing"
-  );
-
-  // Enhanced logging for debugging
-  if (token) {
-    console.log("API: Sending token:", token);
-  } else {
-    console.log("API: No token to send.");
+  if (import.meta.env.DEV) {
+    console.log(
+      `API: ${options.method || "GET"} ${endpoint} | token:`,
+      token ? "present" : "missing",
+      "| Full URL:",
+      BASE_URL + endpoint
+    );
   }
 
-  const response = await fetch(BASE_URL + endpoint, config);
+  let response: Response;
+  try {
+    response = await fetch(BASE_URL + endpoint, config);
+  } catch (e) {
+    // Network / CORS / DNS errors land here
+    if (e instanceof TypeError && e.message === "Failed to fetch") {
+      throw new Error(
+        `NETWORK_ERROR: Unable to reach backend at ${BASE_URL}${endpoint}. Check server running, CORS, and HTTPS.`
+      );
+    }
+    throw e;
+  }
 
   if (!response.ok) {
     const errorText = await response.text();
-    console.error("API Error:", response.status, errorText);
+    console.error("API Error Details:", {
+      status: response.status,
+      statusText: response.statusText,
+      url: response.url,
+      errorText: errorText,
+    });
 
     // Handle specific error cases
     if (response.status === 401) {
-      localStorage.removeItem("adminToken");
-      console.warn("API: 401 received, token cleared, redirecting to login.");
-      // Redirect to login page
-      window.location.href = "/login";
-      // Return a promise that will never resolve to prevent further processing
-      return new Promise(() => {});
+      console.error("API: 401 Unauthorized on endpoint:", endpoint);
+      // Only clear token if we're not on login endpoint
+      if (!endpoint.includes("/login") && !didHandleUnauthorized) {
+        didHandleUnauthorized = true;
+        localStorage.removeItem("adminToken");
+        if (import.meta.env.DEV) {
+          console.warn(
+            "API: 401 received, token cleared, redirecting to login"
+          );
+        }
+        // Redirect to login after short tick
+        setTimeout(() => {
+          window.location.replace("/login");
+          didHandleUnauthorized = false; // Reset flag after redirect
+        }, 100);
+      }
+      throw new Error("Unauthorized - please login again");
     }
 
-    throw new Error(`HTTP error! status: ${response.status}`);
+    if (response.status === 500) {
+      throw new Error(
+        `HTTP_500: Backend server error - ${
+          errorText || "Internal server error"
+        }. Check backend logs for details.`
+      );
+    }
+
+    throw new Error(
+      `HTTP_${response.status}: ${errorText || "Request failed"}`
+    );
   }
 
   const data = await response.json();
@@ -95,52 +142,95 @@ export const adminApi = {
   // Students - returns array directly
   getUsers: () => apiRequest<Student[]>("/users"),
   registerUser: (userData: any) =>
-    apiRequest<ApiResponse<Student>>("/register", {
+    apiRequest<{message: string}>("/register", {
       method: "POST",
       body: JSON.stringify(userData),
     }),
   updateStudent: (adharNumber: string, data: Partial<Student>) =>
-    apiRequest<ApiResponse<Student>>(`/student/${adharNumber}`, {
-      method: "PUT",
-      body: JSON.stringify(data),
-    }),
+    apiRequest<{name: string; adharNumber: number; message: string}>(
+      `/student/${adharNumber}`,
+      {
+        method: "PUT",
+        body: JSON.stringify(data),
+      }
+    ),
   deleteStudent: (adharNumber: string) =>
-    apiRequest<ApiResponse<{message: string}>>(`/student/${adharNumber}`, {
+    apiRequest<{message: string}>(`/student/${adharNumber}`, {
       method: "DELETE",
     }),
 
   // Subscription Plans - returns array directly
   getSubscriptionPlans: () => apiRequest<SubscriptionPlan[]>("/subscriptions"),
   createSubscriptionPlan: (planData: any) =>
-    apiRequest<ApiResponse<SubscriptionPlan>>("/subscription", {
+    apiRequest<{message: string; planName: string}>("/subscription", {
       method: "POST",
       body: JSON.stringify(planData),
     }),
   updateSubscriptionPlan: (planData: Partial<SubscriptionPlan>) =>
-    apiRequest<ApiResponse<SubscriptionPlan>>("/subscription", {
+    apiRequest<{message: string; planName: string}>("/subscription", {
       method: "PUT",
       body: JSON.stringify(planData),
     }),
+  deleteSubscriptionPlan: (planId: string) =>
+    apiRequest<{message: string; planName: string}>(`/subscription/${planId}`, {
+      method: "DELETE",
+    }),
   // Subscription Ending - returns custom format
   getSubscriptionEndingPlan: () =>
-    apiRequest<{message: string; count: number; users: Student[]}>(
+    apiRequest<{message: string; count: number; users: ExpiringUser[]}>(
       "/subscription-ending"
     ),
 
-  // Seat Management - returns data directly
-  getSeatManagement: () => apiRequest<SeatManagementData>("/seats"),
-  getAvailableSeats: () => apiRequest<Seat[]>("/seats/available"),
-  getSeatInfo: (seatNumber: string) => apiRequest<Seat>(`/seat/${seatNumber}`),
+  // Seat Management - transform backend response into SeatManagementData
+  getSeatManagement: async (): Promise<SeatManagementData> => {
+    const raw = await apiRequest<SeatManagementApiResponse>("/seats");
+    return {
+      totalSeats: raw.statistics.totalSeats,
+      occupiedSeats: raw.statistics.occupiedSeats,
+      availableSeats: raw.statistics.availableSeats,
+      seats: raw.seats.map((s) => ({
+        seatNumber: s.seatNumber,
+        studentName: s.student === "Available" ? undefined : s.student,
+        subscriptionPlan: s.plan === "-" ? undefined : s.plan,
+        allocatedDate: s.joiningDate !== "-" ? s.joiningDate : undefined,
+        expiryDate: s.expirationDate !== "-" ? s.expirationDate : undefined,
+        status: s.status,
+      })),
+    };
+  },
+  getAvailableSeats: () =>
+    apiRequest<{message: string; availableSeats: string[]}>("/seats/available"),
+  getSeatInfo: (seatNumber: string) =>
+    apiRequest<{
+      seatNumber: string;
+      section: string;
+      status: string;
+      student: any;
+    }>(`/seat/${seatNumber}`),
   addSeat: (seatData: any) =>
-    apiRequest<ApiResponse<Seat>>("/seat", {
+    apiRequest<{
+      message: string;
+      seatNumber: string;
+      section: string;
+      student: string;
+      plan: string;
+    }>("/seat", {
       method: "POST",
       body: JSON.stringify(seatData),
     }),
-  updateSeat: (seatNumber: string, data: Partial<Seat>) =>
-    apiRequest<ApiResponse<Seat>>(`/seat/${seatNumber}`, {
+  updateSeat: (seatNumber: string, data: any) =>
+    apiRequest<{
+      message: string;
+      seatNumber: string;
+      status: string;
+      student: string;
+      plan: string;
+      feePaid: boolean;
+      joiningDate: string;
+    }>(`/seat/${seatNumber}`, {
       method: "PUT",
       body: JSON.stringify(data),
     }),
   cleanupInvalidSeats: () =>
-    apiRequest<ApiResponse<{message: string}>>("/seats/cleanup"),
+    apiRequest<{message: string; invalidSeats?: any[]}>("/seats/cleanup"),
 };

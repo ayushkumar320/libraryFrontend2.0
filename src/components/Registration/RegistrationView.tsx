@@ -34,15 +34,61 @@ const RegistrationView: React.FC = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
+        if (import.meta.env.DEV) console.log("Registration: fetching plans");
+
+        // Check if user is authenticated
+        const token = localStorage.getItem("adminToken");
+        if (!token) {
+          console.error("Registration: No auth token found");
+          showNotification(
+            "error",
+            "Please login first to access registration"
+          );
+          return;
+        }
+
         const plansResponse = await adminApi.getSubscriptionPlans();
-        // Handle direct array response from backend
+        console.log("Registration: Plans fetched:", plansResponse);
+        console.log(
+          "Registration: Number of plans:",
+          plansResponse ? plansResponse.length : 0
+        );
+
+        // Log individual plan details to check ObjectId format
+        if (plansResponse && plansResponse.length > 0) {
+          plansResponse.forEach((plan, index) => {
+            console.log(`Registration: Plan ${index + 1}:`, {
+              id: plan._id,
+              name: plan.planName,
+              price: plan.price,
+              isValidObjectId: /^[0-9a-fA-F]{24}$/.test(plan._id),
+            });
+          });
+        }
+
         setPlans(plansResponse || []);
+
+        if (!plansResponse || plansResponse.length === 0) {
+          showNotification(
+            "error",
+            "No subscription plans available. Please create plans first or check your connection."
+          );
+        }
       } catch (error) {
         console.error("Error fetching data:", error);
-        showNotification(
-          "error",
-          "Failed to fetch subscription plans from backend"
-        );
+
+        // Check if it's an auth error
+        if (error instanceof Error && error.message.includes("401")) {
+          showNotification(
+            "error",
+            "Authentication failed. Please login again."
+          );
+        } else {
+          showNotification(
+            "error",
+            "Failed to fetch subscription plans from backend. Please check if you're logged in."
+          );
+        }
         setPlans([]);
       }
     };
@@ -78,15 +124,70 @@ const RegistrationView: React.FC = () => {
     try {
       // Combine seat section and number
       const fullSeatNumber = `${formData.seatSection}${formData.seatNumber}`;
-      const submitData = {
-        ...formData,
-        seatNumber: fullSeatNumber,
-      };
-      // Remove seatSection from submitData as backend doesn't need it
-      const {seatSection, ...dataForApi} = submitData;
 
-      await adminApi.registerUser(dataForApi);
-      showNotification("success", "Student registered successfully!");
+      // Validate required fields
+      if (!formData.name || !formData.idNumber || !formData.adharNumber || !formData.subscriptionPlan) {
+        showNotification("error", "Please fill in all required fields including subscription plan");
+        setLoading(false);
+        return;
+      }
+
+      // Validate subscription plan ID format (MongoDB ObjectId should be 24 hex characters)
+      console.log("Registration: Validating subscription plan:", {
+        selectedPlan: formData.subscriptionPlan,
+        isValid: /^[0-9a-fA-F]{24}$/.test(formData.subscriptionPlan),
+        length: formData.subscriptionPlan.length,
+        availablePlans: plans.map((p) => ({id: p._id, name: p.planName})),
+      });
+
+      // Validate subscription plan selection
+      if (!formData.subscriptionPlan || formData.subscriptionPlan.trim() === "") {
+        showNotification("error", "Please select a subscription plan");
+        setLoading(false);
+        return;
+      }
+
+      // Validate ObjectId format
+      if (!/^[0-9a-fA-F]{24}$/.test(formData.subscriptionPlan)) {
+        showNotification("error", "Invalid subscription plan selected");
+        setLoading(false);
+        return;
+      }
+
+      const finalSubscriptionPlan = formData.subscriptionPlan;
+
+      // Prepare data with proper types for backend (matching Postman format exactly)
+      const submitData: any = {
+        name: formData.name.trim(),
+        adharNumber: parseInt(formData.adharNumber),
+        subscriptionPlan: finalSubscriptionPlan, // Use the forced valid ObjectId
+        joiningDate:
+          formData.joiningDate || new Date().toISOString().split("T")[0], // YYYY-MM-DD format
+        feePaid: formData.feePaid,
+        seatNumber: fullSeatNumber,
+        age: formData.age ? parseInt(formData.age) : undefined,
+        address: formData.address?.trim(),
+        idNumber: parseInt(formData.idNumber),
+        isActive: formData.isActive,
+      };
+
+      // Remove undefined values
+      Object.keys(submitData).forEach((key) => {
+        if (submitData[key] === undefined) {
+          delete submitData[key];
+        }
+      });
+
+      console.log("Registration: Submitting data:", submitData);
+      console.log("Registration: Plans available:", plans);
+      console.log("Registration: Selected plan ID:", formData.subscriptionPlan);
+
+      const response = await adminApi.registerUser(submitData);
+      console.log("Registration: Success response:", response);
+      showNotification(
+        "success",
+        response.message || "Student registered successfully!"
+      );
       setFormData({
         name: "",
         idNumber: "",
@@ -101,8 +202,38 @@ const RegistrationView: React.FC = () => {
         isActive: true,
       });
     } catch (error) {
-      console.error("Error registering student:", error);
-      showNotification("error", "Error registering student. Please try again.");
+      console.error("Registration error:", error);
+      let errorMessage = "Error registering student. Please try again.";
+      
+      if (error instanceof Error) {
+        console.log("Registration: Error details:", error.message);
+        
+        // Extract more specific error message
+        if (error.message.includes("HTTP_400")) {
+          if (error.message.includes("Subscription plan not found")) {
+            errorMessage = "Selected subscription plan is not available. Please refresh and select a valid plan.";
+          } else if (error.message.includes("Invalid subscriptionPlan ID format")) {
+            errorMessage = "Invalid subscription plan selected. Please select a valid plan.";
+          } else if (error.message.includes("Missing required fields")) {
+            errorMessage = "Please fill in all required fields.";
+          } else if (error.message.includes("already exists")) {
+            errorMessage = "Student with this Aadhar number, ID number, or seat already exists.";
+          } else {
+            errorMessage = "Invalid data provided. Please check all fields.";
+          }
+        } else if (error.message.includes("HTTP_401")) {
+          errorMessage = "Authentication failed. Please login again.";
+        } else if (error.message.includes("HTTP_500")) {
+          errorMessage = "Server error. Please try again later.";
+        } else if (error.message.includes("NETWORK_ERROR")) {
+          errorMessage = "Cannot connect to server. Please check your internet connection.";
+        } else {
+          errorMessage = `Registration failed: ${error.message}`;
+        }
+      }
+      
+      console.log("Registration: Showing error:", errorMessage);
+      showNotification("error", errorMessage);
     } finally {
       setLoading(false);
     }
@@ -173,9 +304,11 @@ const RegistrationView: React.FC = () => {
                   required
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="">Monthly</option>
+                  <option value="" disabled>
+                    Select a plan
+                  </option>
                   {plans.map((plan) => (
-                    <option key={plan._id} value={plan.planName}>
+                    <option key={plan._id} value={plan._id}>
                       {plan.planName} - ₹{plan.price}
                     </option>
                   ))}

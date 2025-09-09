@@ -1,14 +1,13 @@
 import React, {useState, useEffect} from "react";
-import {Search, Plus, User, CheckCircle, Wrench, X} from "lucide-react";
+import {Search, Plus, User, X} from "lucide-react";
 import {adminApi} from "../../services/api";
-import {SeatManagementData, Student} from "../../types/api";
+import {SeatManagementData, Student, SubscriptionPlan} from "../../types/api";
 
 const SeatsView: React.FC = () => {
   const [seatData, setSeatData] = useState<SeatManagementData>({
     totalSeats: 0,
     occupiedSeats: 0,
     availableSeats: 0,
-    maintenanceSeats: 0,
     seats: [],
   });
   const [loading, setLoading] = useState(true);
@@ -21,6 +20,7 @@ const SeatsView: React.FC = () => {
   const [addSeatModalOpen, setAddSeatModalOpen] = useState(false);
   const [selectedSeat, setSelectedSeat] = useState<string>("");
   const [students, setStudents] = useState<Student[]>([]);
+  const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
   const [allocateLoading, setAllocateLoading] = useState(false);
 
   // Form data for allocation
@@ -51,43 +51,27 @@ const SeatsView: React.FC = () => {
     const fetchData = async () => {
       try {
         console.log("Seats: Fetching data...");
-        const [seatResponse, studentsResponse] = await Promise.all([
+        const [seatResponse, studentsResponse, plansResponse] = await Promise.all([
           adminApi.getSeatManagement(),
           adminApi.getUsers(),
+          adminApi.getSubscriptionPlans(),
         ]);
         console.log("Seats: Received data:", {seatResponse, studentsResponse});
 
         if (seatResponse?.seats) {
-          const seats = seatResponse.seats;
-          const occupiedSeats = seats.filter(
-            (s) => s.status === "Occupied"
-          ).length;
-          const availableSeats = seats.filter(
-            (s) => s.status === "Available"
-          ).length;
-          const maintenanceSeats = seats.filter(
-            (s) => s.status === "Maintenance"
-          ).length;
-
-          setSeatData({
-            totalSeats: seats.length,
-            occupiedSeats,
-            availableSeats,
-            maintenanceSeats,
-            seats,
-          });
+          // seatResponse already shaped with totals by service
+          setSeatData(seatResponse);
         } else {
-          // No seat data available
           setSeatData({
             totalSeats: 0,
             occupiedSeats: 0,
             availableSeats: 0,
-            maintenanceSeats: 0,
             seats: [],
           });
         }
 
         setStudents(studentsResponse || []);
+        setPlans(plansResponse || []);
       } catch (error) {
         console.error("Error fetching data:", error);
         showNotification("error", "Failed to fetch data from backend");
@@ -95,7 +79,6 @@ const SeatsView: React.FC = () => {
           totalSeats: 0,
           occupiedSeats: 0,
           availableSeats: 0,
-          maintenanceSeats: 0,
           seats: [],
         });
         setStudents([]);
@@ -122,6 +105,15 @@ const SeatsView: React.FC = () => {
     setAllocateModalOpen(true);
   };
 
+  const refreshSeats = async () => {
+    try {
+      const latest = await adminApi.getSeatManagement();
+      setSeatData(latest);
+    } catch (e) {
+      console.error("Seats: refresh failed", e);
+    }
+  };
+
   const handleSubmitAllocation = async () => {
     if (!allocationForm.studentId || !allocationForm.subscriptionPlan) {
       showNotification(
@@ -142,53 +134,43 @@ const SeatsView: React.FC = () => {
         return;
       }
 
-      // Calculate expiry date based on subscription plan
+      // Find the selected plan to get duration
+      const selectedPlan = plans.find(p => p._id === allocationForm.subscriptionPlan);
+      if (!selectedPlan) {
+        showNotification("error", "Selected subscription plan not found.");
+        return;
+      }
+
+      // Calculate expiry date based on subscription plan duration
       const today = new Date();
       const expiryDate = new Date(today);
+      const durationLower = selectedPlan.duration.toLowerCase();
 
-      switch (allocationForm.subscriptionPlan) {
-        case "Monthly":
-          expiryDate.setMonth(today.getMonth() + 1);
-          break;
-        case "Quarterly":
-          expiryDate.setMonth(today.getMonth() + 3);
-          break;
-        case "Yearly":
-          expiryDate.setFullYear(today.getFullYear() + 1);
-          break;
+      if (durationLower.includes("day")) {
+        const days = parseInt(selectedPlan.duration.match(/\d+/)?.[0] || "30");
+        expiryDate.setDate(today.getDate() + days);
+      } else if (durationLower.includes("week")) {
+        const weeks = parseInt(selectedPlan.duration.match(/\d+/)?.[0] || "4");
+        expiryDate.setDate(today.getDate() + weeks * 7);
+      } else if (durationLower.includes("month")) {
+        const months = parseInt(selectedPlan.duration.match(/\d+/)?.[0] || "1");
+        expiryDate.setMonth(today.getMonth() + months);
+      } else if (durationLower.includes("year")) {
+        const years = parseInt(selectedPlan.duration.match(/\d+/)?.[0] || "1");
+        expiryDate.setFullYear(today.getFullYear() + years);
       }
 
       // Update seat via API
-      const seatUpdateData = {
-        studentId: selectedStudent._id,
+      // Backend expects partial seat update (using simplified contract). We send studentName & subscriptionPlan.
+      await adminApi.updateSeat(selectedSeat, {
+        status: "Occupied",
         studentName: selectedStudent.name,
-        subscriptionPlan: allocationForm.subscriptionPlan,
+        subscriptionPlan: selectedPlan.planName,
         allocatedDate: today.toISOString().split("T")[0],
         expiryDate: expiryDate.toISOString().split("T")[0],
-        status: "Occupied",
-      };
+      });
 
-      await adminApi.updateSeat(selectedSeat, seatUpdateData);
-
-      // Update local state
-      setSeatData((prev) => ({
-        ...prev,
-        seats: prev.seats.map((seat) =>
-          seat.seatNumber === selectedSeat
-            ? {
-                ...seat,
-                status: "Occupied" as "Occupied",
-                studentId: selectedStudent._id,
-                studentName: selectedStudent.name,
-                subscriptionPlan: allocationForm.subscriptionPlan,
-                allocatedDate: today.toISOString().split("T")[0],
-                expiryDate: expiryDate.toISOString().split("T")[0],
-              }
-            : seat
-        ),
-        occupiedSeats: prev.occupiedSeats + 1,
-        availableSeats: prev.availableSeats - 1,
-      }));
+      await refreshSeats();
 
       showNotification(
         "success",
@@ -205,86 +187,24 @@ const SeatsView: React.FC = () => {
   };
 
   const handleDeallocateSeat = async (seatNumber: string) => {
-    if (window.confirm("Are you sure you want to deallocate this seat?")) {
-      try {
-        // Call API to update seat status
-        await adminApi.updateSeat(seatNumber, {
-          status: "Available",
-          studentId: null,
-          studentName: null,
-          subscriptionPlan: null,
-          allocatedDate: null,
-          expiryDate: null,
-        });
-
-        // Update local state
-        setSeatData((prev) => ({
-          ...prev,
-          seats: prev.seats.map((seat) =>
-            seat.seatNumber === seatNumber
-              ? {
-                  ...seat,
-                  status: "Available",
-                  studentName: undefined,
-                  subscriptionPlan: undefined,
-                  allocatedDate: undefined,
-                  expiryDate: undefined,
-                }
-              : seat
-          ),
-          occupiedSeats: prev.occupiedSeats - 1,
-          availableSeats: prev.availableSeats + 1,
-        }));
-
-        showNotification("success", "Seat deallocated successfully!");
-      } catch (error) {
-        console.error("Error deallocating seat:", error);
-        showNotification("error", "Error deallocating seat. Please try again.");
-      }
-    }
-  };
-
-  const handleToggleMaintenance = async (
-    seatNumber: string,
-    currentStatus: string
-  ) => {
+    if (!window.confirm("Are you sure you want to deallocate this seat?"))
+      return;
     try {
-      const newStatus =
-        currentStatus === "Maintenance" ? "Available" : "Maintenance";
-
-      setSeatData((prev) => ({
-        ...prev,
-        seats: prev.seats.map((seat) =>
-          seat.seatNumber === seatNumber
-            ? {...seat, status: newStatus as "Available" | "Occupied" | "Maintenance"}
-            : seat
-        ),
-        maintenanceSeats:
-          newStatus === "Maintenance"
-            ? prev.maintenanceSeats + 1
-            : prev.maintenanceSeats - 1,
-        availableSeats:
-          newStatus === "Available"
-            ? prev.availableSeats + 1
-            : prev.availableSeats - 1,
-      }));
-
-      showNotification(
-        "success",
-        `Seat ${
-          newStatus === "Maintenance"
-            ? "marked for maintenance"
-            : "marked as available"
-        }!`
-      );
+      await adminApi.updateSeat(seatNumber, {
+        status: "Available",
+        studentName: undefined,
+        subscriptionPlan: undefined,
+        allocatedDate: undefined,
+        expiryDate: undefined,
+      });
+      await refreshSeats();
+      showNotification("success", "Seat deallocated successfully!");
     } catch (error) {
-      console.error("Error updating seat status:", error);
-      showNotification(
-        "error",
-        "Error updating seat status. Please try again."
-      );
+      console.error("Error deallocating seat:", error);
+      showNotification("error", "Error deallocating seat. Please try again.");
     }
   };
+  // Maintenance logic removed (not supported by backend currently)
 
   // Get current section seats
   const getCurrentSectionSeats = () => {
@@ -319,8 +239,6 @@ const SeatsView: React.FC = () => {
         return "bg-slate-600 text-white";
       case "Available":
         return "bg-green-500 text-white hover:bg-green-600";
-      case "Maintenance":
-        return "bg-yellow-500 text-white";
       default:
         return "bg-gray-300 text-gray-700";
     }
@@ -332,8 +250,6 @@ const SeatsView: React.FC = () => {
         return "bg-red-100 text-red-800";
       case "Available":
         return "bg-green-100 text-green-800";
-      case "Maintenance":
-        return "bg-yellow-100 text-yellow-800";
       default:
         return "bg-gray-100 text-gray-800";
     }
@@ -404,19 +320,7 @@ const SeatsView: React.FC = () => {
             </div>
           </div>
         </div>
-        <div className="bg-white p-6 rounded-lg border border-gray-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Maintenance</p>
-              <p className="text-2xl font-bold text-gray-900">
-                {seatData.maintenanceSeats}
-              </p>
-            </div>
-            <div className="p-3 rounded-lg bg-yellow-50 text-yellow-600">
-              <span className="text-2xl">🔧</span>
-            </div>
-          </div>
-        </div>
+        {/* Maintenance card removed */}
       </div>
 
       {/* Section Selector and Controls */}
@@ -478,7 +382,7 @@ const SeatsView: React.FC = () => {
             <option>All Status</option>
             <option>Occupied</option>
             <option>Available</option>
-            <option>Maintenance</option>
+            {/* Maintenance filter removed */}
           </select>
         </div>
 
@@ -492,10 +396,7 @@ const SeatsView: React.FC = () => {
             <div className="w-4 h-4 bg-green-500 rounded"></div>
             <span>Available</span>
           </div>
-          <div className="flex items-center space-x-2">
-            <div className="w-4 h-4 bg-yellow-500 rounded"></div>
-            <span>Maintenance</span>
-          </div>
+          {/* Maintenance legend removed */}
         </div>
       </div>
 
@@ -626,42 +527,13 @@ const SeatsView: React.FC = () => {
                         >
                           Allocate
                         </button>
-                      ) : seat.status === "Occupied" ? (
-                        <>
-                          <button
-                            onClick={() =>
-                              handleDeallocateSeat(seat.seatNumber)
-                            }
-                            className="text-red-600 hover:text-red-900 transition-colors"
-                            title="Deallocate seat"
-                          >
-                            <User className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() =>
-                              handleToggleMaintenance(
-                                seat.seatNumber,
-                                seat.status
-                              )
-                            }
-                            className="text-yellow-600 hover:text-yellow-900 transition-colors"
-                            title="Mark for maintenance"
-                          >
-                            <Wrench className="w-4 h-4" />
-                          </button>
-                        </>
                       ) : (
                         <button
-                          onClick={() =>
-                            handleToggleMaintenance(
-                              seat.seatNumber,
-                              seat.status
-                            )
-                          }
-                          className="text-green-600 hover:text-green-900 transition-colors"
-                          title="Mark as available"
+                          onClick={() => handleDeallocateSeat(seat.seatNumber)}
+                          className="text-red-600 hover:text-red-900 transition-colors"
+                          title="Deallocate seat"
                         >
-                          <CheckCircle className="w-4 h-4" />
+                          <User className="w-4 h-4" />
                         </button>
                       )}
                     </div>
@@ -754,9 +626,11 @@ const SeatsView: React.FC = () => {
                     aria-label="Select subscription plan"
                   >
                     <option value="">Select a plan</option>
-                    <option value="Monthly">Monthly</option>
-                    <option value="Quarterly">Quarterly</option>
-                    <option value="Yearly">Yearly</option>
+                    {plans.map((plan) => (
+                      <option key={plan._id} value={plan._id}>
+                        {plan.planName} - ₹{plan.price}
+                      </option>
+                    ))}
                   </select>
                 </div>
               </form>
@@ -888,17 +762,28 @@ const SeatsView: React.FC = () => {
                 Cancel
               </button>
               <button
-                onClick={() => {
-                  // Handle adding seats logic here
-                  const count =
-                    parseInt(addSeatForm.endNumber) -
-                    parseInt(addSeatForm.startNumber) +
-                    1;
-                  showNotification(
-                    "success",
-                    `${count} seats added successfully!`
-                  );
-                  setAddSeatModalOpen(false);
+                onClick={async () => {
+                  const start = parseInt(addSeatForm.startNumber, 10);
+                  const end = parseInt(addSeatForm.endNumber, 10);
+                  if (isNaN(start) || isNaN(end) || end < start) {
+                    showNotification("error", "Invalid seat range");
+                    return;
+                  }
+                  try {
+                    for (let num = start; num <= end; num++) {
+                      const seatNumber = `${addSeatForm.section}${num}`;
+                      await adminApi.addSeat({seatNumber});
+                    }
+                    await refreshSeats();
+                    showNotification(
+                      "success",
+                      `${end - start + 1} seats added successfully!`
+                    );
+                    setAddSeatModalOpen(false);
+                  } catch (e) {
+                    console.error("Add seats error", e);
+                    showNotification("error", "Failed to add seats");
+                  }
                 }}
                 className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 transition-colors"
               >

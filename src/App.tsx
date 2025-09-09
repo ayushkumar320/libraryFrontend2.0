@@ -6,6 +6,7 @@ import StudentsView from "./components/Students/StudentsView";
 import PlansView from "./components/Plans/PlansView";
 import RegistrationView from "./components/Registration/RegistrationView";
 import SeatsView from "./components/Seats/SeatsView";
+import ExpiringStudentsView from "./components/Students/ExpiringStudentsView";
 import {AuthProvider} from "./contexts/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 import ErrorBoundary from "./components/ErrorBoundary";
@@ -26,7 +27,7 @@ function App() {
       case "seats":
         return <SeatsView />;
       case "expiring":
-        return <StudentsView />; // Could be a filtered version
+        return <ExpiringStudentsView />; // Dedicated expiring view
       default:
         return <DashboardView />;
     }

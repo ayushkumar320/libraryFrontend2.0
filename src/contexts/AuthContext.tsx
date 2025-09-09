@@ -44,25 +44,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({children}) => {
 
     console.log("AuthContext: Checking stored token on startup");
     if (storedToken) {
+      console.log("AuthContext: Found token, validating...");
       debugToken(storedToken);
+
+      if (isValidJWT(storedToken) && !isTokenExpired(storedToken)) {
+        setToken(storedToken);
+        setIsAuthenticated(true);
+        console.log("AuthContext: Token is valid, user authenticated");
+      } else {
+        // Token is invalid or expired, remove it
+        localStorage.removeItem("adminToken");
+        console.log(
+          "AuthContext: Token is invalid/expired, removed from storage"
+        );
+      }
     } else {
       console.log("AuthContext: No token found in localStorage");
-    }
-
-    if (
-      storedToken &&
-      isValidJWT(storedToken) &&
-      !isTokenExpired(storedToken)
-    ) {
-      setToken(storedToken);
-      setIsAuthenticated(true);
-      console.log("AuthContext: Token is valid, user authenticated");
-    } else if (storedToken) {
-      // Token is invalid or expired, remove it
-      localStorage.removeItem("adminToken");
-      console.log(
-        "AuthContext: Token is invalid/expired, removed from storage"
-      );
     }
     setLoading(false);
   }, []);
@@ -71,10 +68,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({children}) => {
     email: string,
     password: string
   ): Promise<{success: boolean; error?: string}> => {
+    const start = performance.now();
     try {
       console.log("AuthContext: Attempting login...");
       const response = await adminApi.login({email, password});
-      console.log("AuthContext: Login response received:", response);
+      console.log(
+        "AuthContext: Login response received in",
+        Math.round(performance.now() - start),
+        "ms",
+        response
+      );
 
       // Handle direct token response (your backend format)
       const rawToken = response.token;
@@ -98,10 +101,21 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({children}) => {
       }
       return {success: false, error: "No token received from server"};
     } catch (error) {
-      console.error("Login failed:", error);
-      const errorMessage =
-        error instanceof Error ? error.message : "Login failed";
-      return {success: false, error: errorMessage};
+      const duration = Math.round(performance.now() - start);
+      let message = "Login failed";
+      if (error instanceof TypeError && error.message === "Failed to fetch") {
+        message =
+          "Network error: could not reach server. Check internet, backend URL, or CORS.";
+      } else if (error instanceof Error) {
+        message = error.message;
+      }
+      console.error(
+        "AuthContext: Login failed after",
+        duration,
+        "ms =>",
+        error
+      );
+      return {success: false, error: message};
     }
   };
 

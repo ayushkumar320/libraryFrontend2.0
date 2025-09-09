@@ -2,7 +2,7 @@ import React, {useState, useEffect} from "react";
 import {Users, Armchair, Clock, FileText} from "lucide-react";
 import StatsCard from "./StatsCard";
 import {adminApi} from "../../services/api";
-import {DashboardStats, Student, SubscriptionPlan} from "../../types/api";
+import {DashboardStats, SubscriptionPlan, ExpiringUser} from "../../types/api";
 
 const DashboardView: React.FC = () => {
   const [stats, setStats] = useState<DashboardStats>({
@@ -12,7 +12,7 @@ const DashboardView: React.FC = () => {
     activeUsers: 0,
     totalPlans: 0,
   });
-  const [expiringStudents, setExpiringStudents] = useState<Student[]>([]);
+  const [expiringUsers, setExpiringUsers] = useState<ExpiringUser[]>([]);
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
   const [loading, setLoading] = useState(true);
   const [registrationForm, setRegistrationForm] = useState({
@@ -45,11 +45,9 @@ const DashboardView: React.FC = () => {
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
-        console.log("Dashboard: Fetching data...");
-        console.log(
-          "Dashboard: Token in localStorage:",
-          localStorage.getItem("adminToken") ? "Present" : "Missing"
-        );
+        if (import.meta.env.DEV) {
+          console.log("Dashboard: Fetching data from working backend...");
+        }
 
         const [dashboardData, expiringData, plansData] = await Promise.all([
           adminApi.getDashboardStats(),
@@ -57,11 +55,13 @@ const DashboardView: React.FC = () => {
           adminApi.getSubscriptionPlans(),
         ]);
 
-        console.log("Dashboard: Received data:", {
-          dashboardData,
-          expiringData,
-          plansData,
-        });
+        if (import.meta.env.DEV) {
+          console.log("Dashboard: Received data", {
+            dashboardData,
+            expiringData,
+            plansData,
+          });
+        }
 
         setStats({
           totalStudents: dashboardData.totalStudents || 0,
@@ -70,11 +70,13 @@ const DashboardView: React.FC = () => {
           activeUsers: dashboardData.activeUsers || 0,
           totalPlans: dashboardData.totalPlans || 0,
         });
-        setExpiringStudents(expiringData.users || []);
+        setExpiringUsers(expiringData.users || []);
         setPlans(plansData || []);
-        console.log("Dashboard: Data loaded successfully");
+
+        if (import.meta.env.DEV)
+          console.log("Dashboard: Data loaded successfully from backend");
       } catch (error) {
-        console.error("Error fetching dashboard data:", error);
+        if (import.meta.env.DEV) console.error("Dashboard fetch error", error);
         showNotification("error", "Error loading dashboard data");
       } finally {
         setLoading(false);
@@ -86,9 +88,12 @@ const DashboardView: React.FC = () => {
     if (
       !registrationForm.name ||
       !registrationForm.idNumber ||
-      !registrationForm.adharNumber
+      !registrationForm.adharNumber ||
+      !registrationForm.subscriptionPlan ||
+      !registrationForm.seatSection ||
+      !registrationForm.seatNumber
     ) {
-      showNotification("error", "Please fill all required fields");
+      showNotification("error", "Please fill all required fields including subscription plan and seat details");
       return;
     }
 
@@ -133,7 +138,29 @@ const DashboardView: React.FC = () => {
       });
     } catch (error) {
       console.error("Error registering student:", error);
-      showNotification("error", "Error registering student. Please try again.");
+      let errorMessage = "Error registering student. Please try again.";
+      
+      if (error instanceof Error) {
+        if (error.message.includes("HTTP_400")) {
+          if (error.message.includes("Subscription plan not found")) {
+            errorMessage = "Selected subscription plan is not available. Please refresh and select a valid plan.";
+          } else if (error.message.includes("Invalid subscriptionPlan ID format")) {
+            errorMessage = "Invalid subscription plan selected. Please select a valid plan.";
+          } else if (error.message.includes("already exists")) {
+            errorMessage = "Student with this Aadhar number, ID number, or seat already exists.";
+          } else {
+            errorMessage = "Invalid data provided. Please check all fields.";
+          }
+        } else if (error.message.includes("HTTP_401")) {
+          errorMessage = "Authentication failed. Please login again.";
+        } else if (error.message.includes("HTTP_500")) {
+          errorMessage = "Server error. Please try again later.";
+        } else {
+          errorMessage = `Registration failed: ${error.message}`;
+        }
+      }
+      
+      showNotification("error", errorMessage);
     }
   };
 
@@ -311,8 +338,8 @@ const DashboardView: React.FC = () => {
                 >
                   <option value="">Select plan</option>
                   {plans.map((plan) => (
-                    <option key={plan._id} value={plan.planName}>
-                      {plan.planName}
+                    <option key={plan._id} value={plan._id}>
+                      {plan.planName} - ₹{plan.price}
                     </option>
                   ))}
                 </select>
@@ -406,34 +433,36 @@ const DashboardView: React.FC = () => {
             </h3>
           </div>
           <div className="space-y-3">
-            {expiringStudents.length > 0 ? (
-              expiringStudents.slice(0, 4).map((student, index) => (
+            {expiringUsers.length > 0 ? (
+              expiringUsers.slice(0, 4).map((user, index) => (
                 <div
-                  key={student._id || index}
+                  key={user.seatNumber + index}
                   className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
                 >
                   <div className="flex items-center space-x-3">
                     <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center">
                       <span className="text-xs font-medium text-gray-600">
-                        {student.name?.charAt(0) || "U"}
+                        {user.name?.charAt(0) || "U"}
                       </span>
                     </div>
                     <div>
                       <p className="font-medium text-gray-900">
-                        {student.name || "Unknown"}
+                        {user.name || "Unknown"}
                       </p>
                       <p className="text-sm text-gray-500">
-                        Seat: {student.seatNumber || "N/A"}
+                        Seat: {user.seatNumber || "N/A"}
                       </p>
                     </div>
                   </div>
                   <div className="text-right">
                     <p className="text-sm font-medium text-gray-900">
-                      {student.joiningDate
-                        ? new Date(student.joiningDate).toLocaleDateString()
+                      {user.expirationDate
+                        ? new Date(user.expirationDate).toLocaleDateString()
                         : "N/A"}
                     </p>
-                    <p className="text-xs text-orange-600">Expiring Soon</p>
+                    <p className="text-xs text-orange-600">
+                      {user.daysLeft} day{user.daysLeft === 1 ? "" : "s"} left
+                    </p>
                   </div>
                 </div>
               ))
