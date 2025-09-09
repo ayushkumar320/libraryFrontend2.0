@@ -37,6 +37,7 @@ const getAuthToken = () => {
 };
 
 // API request helper
+let didHandleUnauthorized = false;
 const apiRequest = async <T>(
   endpoint: string,
   options: RequestInit = {}

@@ -317,6 +317,7 @@ const RegistrationView: React.FC = () => {
                   <option value="Evening">Evening</option>
                   <option value="Full day">Full day</option>
                   <option value="24 Hour">24 Hour</option>
+                  <option value="Short Slot">Short Slot</option>
                 </select>
               </div>
             </div>
