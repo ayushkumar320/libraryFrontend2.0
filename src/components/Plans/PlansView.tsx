@@ -115,6 +115,7 @@ const PlansView = () => {
     try {
       setLoading(true);
       const planData = {
+        planId: editingPlan._id,
         planName: editPlanForm.planName,
         duration: editPlanForm.duration,
         price: parseInt(editPlanForm.price),
