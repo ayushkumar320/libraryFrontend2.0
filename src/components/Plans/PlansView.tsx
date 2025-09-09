@@ -151,7 +151,19 @@ const PlansView = () => {
         showNotification("success", response.message || "Plan deleted successfully!");
       } catch (error) {
         console.error("Error deleting plan:", error);
-        showNotification("error", "Error deleting plan. Please try again.");
+        let message = "Error deleting plan. Please try again.";
+        if (error instanceof Error) {
+          if (error.message.includes("Cannot delete plan with active subscribers")) {
+            message = "Cannot delete plan with active subscribers. Reassign or remove subscribers first.";
+          } else if (error.message.includes("HTTP_401")) {
+            message = "Unauthorized. Please login again.";
+          } else if (error.message.includes("Invalid plan ID")) {
+            message = "Invalid plan id.";
+          } else {
+            message = error.message;
+          }
+        }
+        showNotification("error", message);
       } finally {
         setLoading(false);
       }
@@ -189,7 +201,7 @@ const PlansView = () => {
     <div className="p-6">
       <div className="mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Fee Management</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Plan Management</h1>
           <p className="text-gray-600">
             Manage pricing for different subscription plans
           </p>
@@ -334,11 +346,19 @@ const PlansView = () => {
                         <Edit className="w-4 h-4" />
                       </button>
                       <button
-                        onClick={() =>
-                          handleDeletePlan(plan._id, plan.planName)
-                        }
-                        className="text-red-600 hover:text-red-900"
-                        title="Delete plan"
+                        onClick={() => {
+                          if ((plan.subscribers?.length || 0) > 0) {
+                            showNotification(
+                              "error",
+                              "Cannot delete plan with active subscribers."
+                            );
+                            return;
+                          }
+                          handleDeletePlan(plan._id, plan.planName);
+                        }}
+                        className={`text-red-600 hover:text-red-900 ${(plan.subscribers?.length || 0) > 0 ? "opacity-40 cursor-not-allowed" : ""}`}
+                        title={(plan.subscribers?.length || 0) > 0 ? "Has active subscribers" : "Delete plan"}
+                        disabled={(plan.subscribers?.length || 0) > 0}
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
