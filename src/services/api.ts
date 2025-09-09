@@ -87,7 +87,12 @@ const apiRequest = async <T>(
 
   if (!response.ok) {
     const errorText = await response.text();
-    console.error("API Error:", response.status, errorText);
+    console.error("API Error Details:", {
+      status: response.status,
+      statusText: response.statusText,
+      url: response.url,
+      errorText: errorText,
+    });
 
     // Handle specific error cases
     if (response.status === 401) {
@@ -112,7 +117,9 @@ const apiRequest = async <T>(
 
     if (response.status === 500) {
       throw new Error(
-        "Server error - please try again later or contact support"
+        `HTTP_500: Backend server error - ${
+          errorText || "Internal server error"
+        }. Check backend logs for details.`
       );
     }
 
