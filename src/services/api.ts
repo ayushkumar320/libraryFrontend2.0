@@ -4,7 +4,7 @@ if (!BASE_URL) {
   if (import.meta.env.DEV) {
     // Assume local backend default port if not provided
     BASE_URL =
-      "https://project-beta-backend-library-manage.vercel.app//api/admin";
+      "https://project-beta-backend-library-manage.vercel.app/api/admin";
   } else {
     // Production relative (assumes reverse proxy /api/admin)
     BASE_URL = "/api/admin";
@@ -17,8 +17,6 @@ import {
   Student,
   SubscriptionPlan,
   SeatManagementData,
-  Seat,
-  ApiResponse,
   SeatManagementApiResponse,
   ExpiringUser,
 } from "../types/api";
@@ -68,7 +66,9 @@ const apiRequest = async <T>(
   if (import.meta.env.DEV) {
     console.log(
       `API: ${options.method || "GET"} ${endpoint} | token:`,
-      token ? "present" : "missing"
+      token ? "present" : "missing",
+      "| Full URL:",
+      BASE_URL + endpoint
     );
   }
 
@@ -91,14 +91,21 @@ const apiRequest = async <T>(
 
     // Handle specific error cases
     if (response.status === 401) {
-      if (!didHandleUnauthorized) {
+      console.error("API: 401 Unauthorized on endpoint:", endpoint);
+      // Only clear token if we're not on login endpoint
+      if (!endpoint.includes("/login") && !didHandleUnauthorized) {
         didHandleUnauthorized = true;
         localStorage.removeItem("adminToken");
         if (import.meta.env.DEV) {
-          console.warn("API: 401 received, token cleared");
+          console.warn(
+            "API: 401 received, token cleared, redirecting to login"
+          );
         }
         // Redirect to login after short tick
-        setTimeout(() => window.location.replace("/login"), 50);
+        setTimeout(() => {
+          window.location.replace("/login");
+          didHandleUnauthorized = false; // Reset flag after redirect
+        }, 100);
       }
       throw new Error("Unauthorized - please login again");
     }
@@ -133,29 +140,32 @@ export const adminApi = {
   // Students - returns array directly
   getUsers: () => apiRequest<Student[]>("/users"),
   registerUser: (userData: any) =>
-    apiRequest<ApiResponse<Student>>("/register", {
+    apiRequest<{message: string}>("/register", {
       method: "POST",
       body: JSON.stringify(userData),
     }),
   updateStudent: (adharNumber: string, data: Partial<Student>) =>
-    apiRequest<ApiResponse<Student>>(`/student/${adharNumber}`, {
-      method: "PUT",
-      body: JSON.stringify(data),
-    }),
+    apiRequest<{name: string; adharNumber: number; message: string}>(
+      `/student/${adharNumber}`,
+      {
+        method: "PUT",
+        body: JSON.stringify(data),
+      }
+    ),
   deleteStudent: (adharNumber: string) =>
-    apiRequest<ApiResponse<{message: string}>>(`/student/${adharNumber}`, {
+    apiRequest<{message: string}>(`/student/${adharNumber}`, {
       method: "DELETE",
     }),
 
   // Subscription Plans - returns array directly
   getSubscriptionPlans: () => apiRequest<SubscriptionPlan[]>("/subscriptions"),
   createSubscriptionPlan: (planData: any) =>
-    apiRequest<{message: string; planId: string}>("/subscription", {
+    apiRequest<{message: string; planName: string}>("/subscription", {
       method: "POST",
       body: JSON.stringify(planData),
     }),
   updateSubscriptionPlan: (planData: Partial<SubscriptionPlan>) =>
-    apiRequest<ApiResponse<SubscriptionPlan>>("/subscription", {
+    apiRequest<{message: string; planName: string}>("/subscription", {
       method: "PUT",
       body: JSON.stringify(planData),
     }),
@@ -182,14 +192,27 @@ export const adminApi = {
       })),
     };
   },
-  getAvailableSeats: () => apiRequest<Seat[]>("/seats/available"),
-  getSeatInfo: (seatNumber: string) => apiRequest<Seat>(`/seat/${seatNumber}`),
+  getAvailableSeats: () =>
+    apiRequest<{message: string; availableSeats: string[]}>("/seats/available"),
+  getSeatInfo: (seatNumber: string) =>
+    apiRequest<{
+      seatNumber: string;
+      section: string;
+      status: string;
+      student: any;
+    }>(`/seat/${seatNumber}`),
   addSeat: (seatData: any) =>
-    apiRequest<{message: string; seatNumber: string}>("/seat", {
+    apiRequest<{
+      message: string;
+      seatNumber: string;
+      section: string;
+      student: string;
+      plan: string;
+    }>("/seat", {
       method: "POST",
       body: JSON.stringify(seatData),
     }),
-  updateSeat: (seatNumber: string, data: Partial<Seat>) =>
+  updateSeat: (seatNumber: string, data: any) =>
     apiRequest<{
       message: string;
       seatNumber: string;
@@ -203,5 +226,5 @@ export const adminApi = {
       body: JSON.stringify(data),
     }),
   cleanupInvalidSeats: () =>
-    apiRequest<ApiResponse<{message: string}>>("/seats/cleanup"),
+    apiRequest<{message: string; invalidSeats?: any[]}>("/seats/cleanup"),
 };

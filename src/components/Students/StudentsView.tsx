@@ -158,20 +158,20 @@ const StudentsView: React.FC = () => {
         isActive: editFormData.isActive,
       };
 
-      await adminApi.updateStudent(
+      const response = await adminApi.updateStudent(
         selectedStudent.adharNumber.toString(),
         submitData
       );
 
-      // Update local state
-      setStudents(
-        students.map((s) =>
-          s._id === selectedStudent._id ? {...s, ...submitData} : s
-        )
-      );
+      // Backend returns {name, adharNumber, message} - refresh the student list
+      const updatedStudents = await adminApi.getUsers();
+      setStudents(updatedStudents || []);
 
       setEditModalOpen(false);
-      showNotification("success", "Student updated successfully!");
+      showNotification(
+        "success",
+        response.message || "Student updated successfully!"
+      );
     } catch (error) {
       console.error("Error updating student:", error);
       showNotification("error", "Error updating student. Please try again.");

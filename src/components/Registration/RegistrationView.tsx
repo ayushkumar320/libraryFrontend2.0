@@ -78,15 +78,52 @@ const RegistrationView: React.FC = () => {
     try {
       // Combine seat section and number
       const fullSeatNumber = `${formData.seatSection}${formData.seatNumber}`;
-      const submitData = {
-        ...formData,
-        seatNumber: fullSeatNumber,
-      };
-      // Remove seatSection from submitData as backend doesn't need it
-      const {seatSection, ...dataForApi} = submitData;
 
-      await adminApi.registerUser(dataForApi);
-      showNotification("success", "Student registered successfully!");
+      // Validate required fields
+      if (
+        !formData.name ||
+        !formData.idNumber ||
+        !formData.adharNumber ||
+        !formData.subscriptionPlan
+      ) {
+        showNotification("error", "Please fill in all required fields");
+        setLoading(false);
+        return;
+      }
+
+      // Prepare data with proper types for backend
+      const submitData: any = {
+        name: formData.name.trim(),
+        idNumber: parseInt(formData.idNumber),
+        age: formData.age ? parseInt(formData.age) : undefined,
+        adharNumber: parseInt(formData.adharNumber),
+        address: formData.address?.trim(),
+        subscriptionPlan: formData.subscriptionPlan, // This should be the ObjectId from the dropdown
+        joiningDate: formData.joiningDate
+          ? new Date(formData.joiningDate).toISOString()
+          : new Date().toISOString(),
+        seatNumber: fullSeatNumber,
+        feePaid: formData.feePaid,
+        isActive: formData.isActive,
+      };
+
+      // Remove undefined values
+      Object.keys(submitData).forEach((key) => {
+        if (submitData[key] === undefined) {
+          delete submitData[key];
+        }
+      });
+
+      console.log("Registration: Submitting data:", submitData);
+      console.log("Registration: Plans available:", plans);
+      console.log("Registration: Selected plan ID:", formData.subscriptionPlan);
+      
+      const response = await adminApi.registerUser(submitData);
+      console.log("Registration: Success response:", response);
+      showNotification(
+        "success",
+        response.message || "Student registered successfully!"
+      );
       setFormData({
         name: "",
         idNumber: "",
@@ -101,8 +138,29 @@ const RegistrationView: React.FC = () => {
         isActive: true,
       });
     } catch (error) {
-      console.error("Error registering student:", error);
-      showNotification("error", "Error registering student. Please try again.");
+      console.error("Registration error:", error);
+      let errorMessage = "Error registering student. Please try again.";
+      if (error instanceof Error) {
+        // Extract more specific error message
+        if (error.message.includes("HTTP_400")) {
+          errorMessage =
+            "Invalid data provided. Please check all fields and ensure ID/Aadhar numbers are unique.";
+        } else if (
+          error.message.includes("HTTP_409") ||
+          error.message.includes("duplicate")
+        ) {
+          errorMessage =
+            "Student with this Aadhar number, ID number, or seat already exists.";
+        } else if (error.message.includes("HTTP_500")) {
+          errorMessage = "Server error. Please try again later.";
+        } else if (error.message.includes("validation")) {
+          errorMessage =
+            "Validation error: Please check all required fields are filled correctly.";
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      showNotification("error", errorMessage);
     } finally {
       setLoading(false);
     }
@@ -177,7 +235,7 @@ const RegistrationView: React.FC = () => {
                     Select a plan
                   </option>
                   {plans.map((plan) => (
-                    <option key={plan._id} value={plan.planName}>
+                    <option key={plan._id} value={plan._id}>
                       {plan.planName} - ₹{plan.price}
                     </option>
                   ))}

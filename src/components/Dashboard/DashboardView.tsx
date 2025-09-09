@@ -46,7 +46,7 @@ const DashboardView: React.FC = () => {
     const fetchDashboardData = async () => {
       try {
         if (import.meta.env.DEV) {
-          console.log("Dashboard: Fetching data...");
+          console.log("Dashboard: Fetching data from working backend...");
         }
 
         const [dashboardData, expiringData, plansData] = await Promise.all([
@@ -56,7 +56,11 @@ const DashboardView: React.FC = () => {
         ]);
 
         if (import.meta.env.DEV) {
-          console.log("Dashboard: Received data", dashboardData);
+          console.log("Dashboard: Received data", {
+            dashboardData,
+            expiringData,
+            plansData,
+          });
         }
 
         setStats({
@@ -68,7 +72,9 @@ const DashboardView: React.FC = () => {
         });
         setExpiringUsers(expiringData.users || []);
         setPlans(plansData || []);
-        if (import.meta.env.DEV) console.log("Dashboard: Data loaded");
+
+        if (import.meta.env.DEV)
+          console.log("Dashboard: Data loaded successfully from backend");
       } catch (error) {
         if (import.meta.env.DEV) console.error("Dashboard fetch error", error);
         showNotification("error", "Error loading dashboard data");

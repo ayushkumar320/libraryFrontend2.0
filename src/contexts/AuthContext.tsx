@@ -44,25 +44,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({children}) => {
 
     console.log("AuthContext: Checking stored token on startup");
     if (storedToken) {
+      console.log("AuthContext: Found token, validating...");
       debugToken(storedToken);
+
+      if (isValidJWT(storedToken) && !isTokenExpired(storedToken)) {
+        setToken(storedToken);
+        setIsAuthenticated(true);
+        console.log("AuthContext: Token is valid, user authenticated");
+      } else {
+        // Token is invalid or expired, remove it
+        localStorage.removeItem("adminToken");
+        console.log(
+          "AuthContext: Token is invalid/expired, removed from storage"
+        );
+      }
     } else {
       console.log("AuthContext: No token found in localStorage");
-    }
-
-    if (
-      storedToken &&
-      isValidJWT(storedToken) &&
-      !isTokenExpired(storedToken)
-    ) {
-      setToken(storedToken);
-      setIsAuthenticated(true);
-      console.log("AuthContext: Token is valid, user authenticated");
-    } else if (storedToken) {
-      // Token is invalid or expired, remove it
-      localStorage.removeItem("adminToken");
-      console.log(
-        "AuthContext: Token is invalid/expired, removed from storage"
-      );
     }
     setLoading(false);
   }, []);

@@ -68,7 +68,7 @@ const PlansView = () => {
         price: parseInt(newPlanForm.price),
         status: true,
       };
-      const response = await adminApi.createSubscriptionPlan(planData); // {message, planId}
+      const response = await adminApi.createSubscriptionPlan(planData); // {message, planName}
       if (import.meta.env.DEV) console.log("Plan created:", response);
       // Refetch plans to get authoritative list
       const updated = await adminApi.getSubscriptionPlans();
