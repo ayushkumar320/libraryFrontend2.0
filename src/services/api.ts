@@ -176,6 +176,10 @@ export const adminApi = {
       method: "PUT",
       body: JSON.stringify(planData),
     }),
+  deleteSubscriptionPlan: (planId: string) =>
+    apiRequest<{message: string; planName: string}>(`/subscription/${planId}`, {
+      method: "DELETE",
+    }),
   // Subscription Ending - returns custom format
   getSubscriptionEndingPlan: () =>
     apiRequest<{message: string; count: number; users: ExpiringUser[]}>(
