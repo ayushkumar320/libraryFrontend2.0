@@ -19,13 +19,17 @@ const DashboardView: React.FC = () => {
     name: "", // Changed from fullName
     idNumber: "", // Changed from email
     age: "",
+    slot: "",
     adharNumber: "", // Will be converted to number
     address: "",
+    examPreparingFor: "",
+    schoolOrCollegeName: "",
     subscriptionPlan: "",
     seatSection: "",
     seatNumber: "",
     feePaid: false,
     isActive: false,
+    lockerService: false,
   });
 
   // Notification system
@@ -100,14 +104,18 @@ const DashboardView: React.FC = () => {
     try {
       const userData = {
         name: registrationForm.name,
+        slot: registrationForm.slot || undefined,
         idNumber: parseInt(registrationForm.idNumber),
         age: parseInt(registrationForm.age),
         adharNumber: parseInt(registrationForm.adharNumber),
         address: registrationForm.address,
+        examPreparingFor: registrationForm.examPreparingFor || undefined,
+        schoolOrCollegeName: registrationForm.schoolOrCollegeName || undefined,
         subscriptionPlan: registrationForm.subscriptionPlan,
         seatNumber: registrationForm.seatSection + registrationForm.seatNumber,
         feePaid: registrationForm.feePaid,
         isActive: registrationForm.isActive,
+        lockerService: registrationForm.lockerService,
       };
 
       await adminApi.registerUser(userData);
@@ -118,13 +126,17 @@ const DashboardView: React.FC = () => {
         name: "",
         idNumber: "",
         age: "",
+        slot: "",
         adharNumber: "",
         address: "",
+        examPreparingFor: "",
+        schoolOrCollegeName: "",
         subscriptionPlan: "",
         seatSection: "",
         seatNumber: "",
         feePaid: false,
         isActive: false,
+        lockerService: false,
       });
 
       // Refresh dashboard data
@@ -346,6 +358,27 @@ const DashboardView: React.FC = () => {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Slot
+                </label>
+                <select
+                  value={registrationForm.slot}
+                  onChange={(e) =>
+                    setRegistrationForm((prev) => ({
+                      ...prev,
+                      slot: e.target.value,
+                    }))
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Select slot</option>
+                  <option value="Morning">Morning</option>
+                  <option value="Evening">Evening</option>
+                  <option value="Full day">Full day</option>
+                  <option value="24 Hour">24 Hour</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
                   Seat Section
                 </label>
                 <select
@@ -375,6 +408,42 @@ const DashboardView: React.FC = () => {
                     setRegistrationForm((prev) => ({
                       ...prev,
                       seatNumber: e.target.value,
+                    }))
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Exam Preparing For
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g., NEET, UPSC"
+                  value={registrationForm.examPreparingFor}
+                  onChange={(e) =>
+                    setRegistrationForm((prev) => ({
+                      ...prev,
+                      examPreparingFor: e.target.value,
+                    }))
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  School/College Name
+                </label>
+                <input
+                  type="text"
+                  placeholder="Enter institution name"
+                  value={registrationForm.schoolOrCollegeName}
+                  onChange={(e) =>
+                    setRegistrationForm((prev) => ({
+                      ...prev,
+                      schoolOrCollegeName: e.target.value,
                     }))
                   }
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -414,6 +483,23 @@ const DashboardView: React.FC = () => {
                 />
                 <label htmlFor="isActive" className="text-sm text-gray-700">
                   Active
+                </label>
+              </div>
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  id="lockerService"
+                  checked={registrationForm.lockerService}
+                  onChange={(e) =>
+                    setRegistrationForm((prev) => ({
+                      ...prev,
+                      lockerService: e.target.checked,
+                    }))
+                  }
+                  className="mr-2"
+                />
+                <label htmlFor="lockerService" className="text-sm text-gray-700">
+                  Locker Service (+₹100/month)
                 </label>
               </div>
             </div>

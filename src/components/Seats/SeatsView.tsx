@@ -772,7 +772,7 @@ const SeatsView: React.FC = () => {
                   try {
                     for (let num = start; num <= end; num++) {
                       const seatNumber = `${addSeatForm.section}${num}`;
-                      await adminApi.addSeat({seatNumber});
+                      await adminApi.addSeat({ seatNumber });
                     }
                     await refreshSeats();
                     showNotification(

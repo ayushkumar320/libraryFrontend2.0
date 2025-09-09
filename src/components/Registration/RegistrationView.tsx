@@ -8,14 +8,18 @@ const RegistrationView: React.FC = () => {
     name: "",
     idNumber: "",
     age: "",
+    slot: "",
     subscriptionPlan: "",
     joiningDate: "",
     address: "",
+    examPreparingFor: "",
+    schoolOrCollegeName: "",
     adharNumber: "",
     seatSection: "A",
     seatNumber: "",
     feePaid: false,
     isActive: true,
+    lockerService: false,
   });
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
   const [loading, setLoading] = useState(false);
@@ -159,6 +163,7 @@ const RegistrationView: React.FC = () => {
       // Prepare data with proper types for backend (matching Postman format exactly)
       const submitData: any = {
         name: formData.name.trim(),
+        slot: formData.slot || undefined,
         adharNumber: parseInt(formData.adharNumber),
         subscriptionPlan: finalSubscriptionPlan, // Use the forced valid ObjectId
         joiningDate:
@@ -167,8 +172,11 @@ const RegistrationView: React.FC = () => {
         seatNumber: fullSeatNumber,
         age: formData.age ? parseInt(formData.age) : undefined,
         address: formData.address?.trim(),
+        examPreparingFor: formData.examPreparingFor?.trim() || undefined,
+        schoolOrCollegeName: formData.schoolOrCollegeName?.trim() || undefined,
         idNumber: parseInt(formData.idNumber),
         isActive: formData.isActive,
+        lockerService: formData.lockerService,
       };
 
       // Remove undefined values
@@ -192,14 +200,18 @@ const RegistrationView: React.FC = () => {
         name: "",
         idNumber: "",
         age: "",
+        slot: "",
         subscriptionPlan: "",
         joiningDate: "",
         address: "",
+        examPreparingFor: "",
+        schoolOrCollegeName: "",
         adharNumber: "",
         seatSection: "A",
         seatNumber: "",
         feePaid: false,
         isActive: true,
+        lockerService: false,
       });
     } catch (error) {
       console.error("Registration error:", error);
@@ -290,6 +302,23 @@ const RegistrationView: React.FC = () => {
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Slot
+                </label>
+                <select
+                  name="slot"
+                  value={formData.slot}
+                  onChange={handleInputChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Select slot</option>
+                  <option value="Morning">Morning</option>
+                  <option value="Evening">Evening</option>
+                  <option value="Full day">Full day</option>
+                  <option value="24 Hour">24 Hour</option>
+                </select>
+              </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -341,6 +370,33 @@ const RegistrationView: React.FC = () => {
                 rows={3}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Exam Preparing For
+                </label>
+                <input
+                  type="text"
+                  name="examPreparingFor"
+                  value={formData.examPreparingFor}
+                  onChange={handleInputChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  School/College Name
+                </label>
+                <input
+                  type="text"
+                  name="schoolOrCollegeName"
+                  value={formData.schoolOrCollegeName}
+                  onChange={handleInputChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -415,6 +471,19 @@ const RegistrationView: React.FC = () => {
                 />
                 <label htmlFor="isActive" className="text-sm text-gray-700">
                   Active
+                </label>
+              </div>
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  id="lockerService"
+                  name="lockerService"
+                  checked={formData.lockerService}
+                  onChange={handleInputChange}
+                  className="mr-2"
+                />
+                <label htmlFor="lockerService" className="text-sm text-gray-700">
+                  Locker Service (+₹100/month)
                 </label>
               </div>
             </div>

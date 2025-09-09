@@ -21,7 +21,7 @@ const Sidebar = ({ activeTab, onTabChange }: SidebarProps) => {
     { id: 'students', label: 'All Students', icon: Users },
     { id: 'expiring', label: 'Expiring Soon', icon: Clock },
     { id: 'seats', label: 'Seat Management', icon: Armchair },
-    { id: 'plans', label: 'Fee Management', icon: CreditCard },
+    { id: 'plans', label: 'Plan Management', icon: CreditCard },
   ];
 
   return (

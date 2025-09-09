@@ -1,15 +1,19 @@
 export interface Student {
   _id: string;
   name: string; // Changed from fullName to match backend schema
+  slot?: "Morning" | "Evening" | "Full day" | "24 Hour";
   idNumber: number; // Changed from email to match backend schema
   age?: number; // Made optional to match backend schema
   adharNumber: number; // Changed from string to number to match backend schema
   address?: string; // Made optional to match backend schema
+  examPreparingFor?: string;
+  schoolOrCollegeName?: string;
   seatNumber: string;
   subscriptionPlan: string | SubscriptionPlan; // Can be ObjectId string or populated object
   joiningDate: string;
   feePaid: boolean; // Changed from feeStatus to match backend schema
   isActive: boolean;
+  lockerService?: boolean;
 }
 
 export interface SubscriptionPlan {

@@ -25,9 +25,30 @@ const StudentsView: React.FC = () => {
     seatNumber: "",
     feePaid: false,
     isActive: true,
+    slot: "",
+    examPreparingFor: "",
+    schoolOrCollegeName: "",
+    lockerService: false,
   });
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
   const [editLoading, setEditLoading] = useState(false);
+
+  // Helpers to resolve plan info and fees
+  const getPlanById = (planId: string | undefined) =>
+    plans.find((p) => p._id === planId);
+  const getPlanNameForStudent = (student: Student) => {
+    if (typeof student.subscriptionPlan === "string") {
+      return getPlanById(student.subscriptionPlan)?.planName || student.subscriptionPlan;
+    }
+    return student.subscriptionPlan.planName;
+  };
+  const getPlanPriceForStudent = (student: Student) => {
+    const planPrice =
+      typeof student.subscriptionPlan === "string"
+        ? getPlanById(student.subscriptionPlan)?.price
+        : student.subscriptionPlan.price;
+    return planPrice || 0;
+  };
 
   // Notification state
   const [notification, setNotification] = useState<{
@@ -108,6 +129,10 @@ const StudentsView: React.FC = () => {
       seatNumber,
       feePaid: student.feePaid,
       isActive: student.isActive,
+      slot: (student as any).slot || "",
+      examPreparingFor: (student as any).examPreparingFor || "",
+      schoolOrCollegeName: (student as any).schoolOrCollegeName || "",
+      lockerService: (student as any).lockerService || false,
     });
     setEditModalOpen(true);
   };
@@ -156,6 +181,10 @@ const StudentsView: React.FC = () => {
         joiningDate: editFormData.joiningDate,
         feePaid: editFormData.feePaid,
         isActive: editFormData.isActive,
+        slot: editFormData.slot || undefined,
+        examPreparingFor: editFormData.examPreparingFor || undefined,
+        schoolOrCollegeName: editFormData.schoolOrCollegeName || undefined,
+        lockerService: editFormData.lockerService,
       };
 
       const response = await adminApi.updateStudent(
@@ -293,6 +322,9 @@ const StudentsView: React.FC = () => {
                   Plan
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Total Fee
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Joined
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -334,10 +366,11 @@ const StudentsView: React.FC = () => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
-                      {typeof student.subscriptionPlan === "string"
-                        ? student.subscriptionPlan
-                        : student.subscriptionPlan.planName}
+                      {getPlanNameForStudent(student)}
                     </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    ₹{(getPlanPriceForStudent(student) + ((student as any).lockerService ? 100 : 0)).toLocaleString("en-IN")}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {new Date(student.joiningDate).toLocaleDateString()}
@@ -446,6 +479,14 @@ const StudentsView: React.FC = () => {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Slot
+                  </label>
+                  <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded">
+                    {(selectedStudent as any).slot || "-"}
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
                     ID Number
                   </label>
                   <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded">
@@ -466,8 +507,22 @@ const StudentsView: React.FC = () => {
                   </label>
                   <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded">
                     {typeof selectedStudent.subscriptionPlan === "string"
-                      ? selectedStudent.subscriptionPlan
+                      ? (plans.find(p => p._id === selectedStudent.subscriptionPlan)?.planName || selectedStudent.subscriptionPlan)
                       : selectedStudent.subscriptionPlan.planName}
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Total Fee
+                  </label>
+                  <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded">
+                    ₹{(() => {
+                      const base = typeof selectedStudent.subscriptionPlan === "string"
+                        ? (plans.find(p => p._id === selectedStudent.subscriptionPlan)?.price || 0)
+                        : selectedStudent.subscriptionPlan.price;
+                      const locker = (selectedStudent as any).lockerService ? 100 : 0;
+                      return (base + locker).toLocaleString("en-IN");
+                    })()}
                   </p>
                 </div>
                 <div>
@@ -501,10 +556,26 @@ const StudentsView: React.FC = () => {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
+                    School/College Name
+                  </label>
+                  <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded">
+                    {(selectedStudent as any).schoolOrCollegeName || "-"}
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
                     Aadhar Number
                   </label>
                   <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded">
                     {selectedStudent.adharNumber}
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Locker Service
+                  </label>
+                  <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded">
+                    {(selectedStudent as any).lockerService ? "Yes (+₹100)" : "No"}
                   </p>
                 </div>
                 <div>
@@ -574,8 +645,24 @@ const StudentsView: React.FC = () => {
                     />
                   </div>
                 </div>
-
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Slot
+                    </label>
+                    <select
+                      name="slot"
+                      value={editFormData.slot}
+                      onChange={handleEditInputChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">Select slot</option>
+                      <option value="Morning">Morning</option>
+                      <option value="Evening">Evening</option>
+                      <option value="Full day">Full day</option>
+                      <option value="24 Hour">24 Hour</option>
+                    </select>
+                  </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Subscription Plan
@@ -595,6 +682,8 @@ const StudentsView: React.FC = () => {
                       ))}
                     </select>
                   </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Joining Date
@@ -608,23 +697,6 @@ const StudentsView: React.FC = () => {
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Address
-                  </label>
-                  <textarea
-                    name="address"
-                    value={editFormData.address}
-                    onChange={handleEditInputChange}
-                    rows={3}
-                    required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Aadhar Number
@@ -638,6 +710,47 @@ const StudentsView: React.FC = () => {
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Address
+                  </label>
+                  <textarea
+                    name="address"
+                    value={editFormData.address}
+                    onChange={handleEditInputChange}
+                    rows={3}
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Exam Preparing For
+                    </label>
+                    <input
+                      type="text"
+                      name="examPreparingFor"
+                      value={editFormData.examPreparingFor}
+                      onChange={handleEditInputChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      School/College Name
+                    </label>
+                    <input
+                      type="text"
+                      name="schoolOrCollegeName"
+                      value={editFormData.schoolOrCollegeName}
+                      onChange={handleEditInputChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Seat Number
@@ -670,7 +783,6 @@ const StudentsView: React.FC = () => {
                     </p>
                   </div>
                 </div>
-
                 <div className="flex items-center space-x-6">
                   <div className="flex items-center">
                     <input
@@ -702,6 +814,22 @@ const StudentsView: React.FC = () => {
                       className="text-sm text-gray-700"
                     >
                       Active
+                    </label>
+                  </div>
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      id="editLockerService"
+                      name="lockerService"
+                      checked={editFormData.lockerService}
+                      onChange={handleEditInputChange}
+                      className="mr-2"
+                    />
+                    <label
+                      htmlFor="editLockerService"
+                      className="text-sm text-gray-700"
+                    >
+                      Locker Service (+₹100/month)
                     </label>
                   </div>
                 </div>
