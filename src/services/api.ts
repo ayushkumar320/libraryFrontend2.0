@@ -24,8 +24,6 @@ const getAuthToken = () => {
 };
 
 // API request helper
-let didHandleUnauthorized = false;
-
 const apiRequest = async <T>(
   endpoint: string,
   options: RequestInit = {}
@@ -35,9 +33,6 @@ const apiRequest = async <T>(
   const authHeaders = token
     ? {
         Authorization: `Bearer ${token}`,
-        // Possible alternate header names some middleware might require
-        "x-auth-token": token,
-        token: token,
       }
     : {};
 
@@ -55,6 +50,13 @@ const apiRequest = async <T>(
     token ? "present" : "missing"
   );
 
+  // Enhanced logging for debugging
+  if (token) {
+    console.log("API: Sending token:", token);
+  } else {
+    console.log("API: No token to send.");
+  }
+
   const response = await fetch(BASE_URL + endpoint, config);
 
   if (!response.ok) {
@@ -63,12 +65,12 @@ const apiRequest = async <T>(
 
     // Handle specific error cases
     if (response.status === 401) {
-      if (!didHandleUnauthorized) {
-        didHandleUnauthorized = true;
-        localStorage.removeItem("adminToken");
-        console.warn("API: 401 received, token cleared from storage");
-      }
-      throw new Error("Unauthorized - please login again");
+      localStorage.removeItem("adminToken");
+      console.warn("API: 401 received, token cleared, redirecting to login.");
+      // Redirect to login page
+      window.location.href = "/login";
+      // Return a promise that will never resolve to prevent further processing
+      return new Promise(() => {});
     }
 
     throw new Error(`HTTP error! status: ${response.status}`);
