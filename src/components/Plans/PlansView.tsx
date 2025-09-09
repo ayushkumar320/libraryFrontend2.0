@@ -1,4 +1,4 @@
-import React, {useState, useEffect} from "react";
+import {useState, useEffect} from "react";
 import {Plus, Search, Edit, Trash2, TrendingUp, X} from "lucide-react";
 import {adminApi} from "../../services/api";
 import {SubscriptionPlan} from "../../types/api";
@@ -31,14 +31,10 @@ const PlansView = () => {
   useEffect(() => {
     const fetchPlans = async () => {
       try {
-        console.log("Plans: Fetching data...");
+        if (import.meta.env.DEV) console.log("Plans: Fetching data...");
         const response = await adminApi.getSubscriptionPlans();
-        console.log("Plans: Received data:", response);
-
-        // Handle direct array response from backend
+        if (import.meta.env.DEV) console.log("Plans: Received data:", response);
         setPlans(response || []);
-
-        console.log("Plans: Data loaded successfully");
       } catch (error) {
         console.error("Error fetching plans:", error);
         showNotification("error", "Failed to fetch plans from backend");
@@ -47,7 +43,6 @@ const PlansView = () => {
         setLoading(false);
       }
     };
-
     fetchPlans();
   }, []);
 
@@ -66,35 +61,29 @@ const PlansView = () => {
     }
 
     try {
+      setLoading(true);
       const planData = {
         planName: newPlanForm.planName,
         duration: newPlanForm.duration,
         price: parseInt(newPlanForm.price),
         status: true,
       };
-
-      const response = await adminApi.createSubscriptionPlan(planData);
-
-      // Handle response - may be wrapped or direct depending on backend
-      const createdPlan = response.data || response;
-      if (createdPlan) {
-        setPlans((prev) => [...prev, createdPlan]);
-      } else {
-        // Fallback if no response data available
-        const newPlan: SubscriptionPlan = {
-          _id: Date.now().toString(),
-          ...planData,
-          subscribers: [],
-        };
-        setPlans((prev) => [...prev, newPlan]);
-      }
-
+      const response = await adminApi.createSubscriptionPlan(planData); // {message, planId}
+      if (import.meta.env.DEV) console.log("Plan created:", response);
+      // Refetch plans to get authoritative list
+      const updated = await adminApi.getSubscriptionPlans();
+      setPlans(updated || []);
       setAddPlanModalOpen(false);
       setNewPlanForm({planName: "", duration: "", price: ""});
-      showNotification("success", "Plan created successfully!");
+      showNotification(
+        "success",
+        response.message || "Plan created successfully!"
+      );
     } catch (error) {
       console.error("Error creating plan:", error);
       showNotification("error", "Error creating plan. Please try again.");
+    } finally {
+      setLoading(false);
     }
   };
 

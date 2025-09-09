@@ -34,8 +34,8 @@ const RegistrationView: React.FC = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
+        if (import.meta.env.DEV) console.log("Registration: fetching plans");
         const plansResponse = await adminApi.getSubscriptionPlans();
-        // Handle direct array response from backend
         setPlans(plansResponse || []);
       } catch (error) {
         console.error("Error fetching data:", error);
@@ -173,7 +173,9 @@ const RegistrationView: React.FC = () => {
                   required
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="">Monthly</option>
+                  <option value="" disabled>
+                    Select a plan
+                  </option>
                   {plans.map((plan) => (
                     <option key={plan._id} value={plan.planName}>
                       {plan.planName} - ₹{plan.price}

@@ -21,14 +21,16 @@ export interface SubscriptionPlan {
   status: boolean;
 }
 
-export interface SeatManagement {
-  _id?: string;
+// Seat item as returned by getSeatManagement (transformed in frontend)
+export interface ManagedSeat {
   seatNumber: string;
-  student: string | Student; // ObjectId reference or populated object
-  plan: string | SubscriptionPlan; // ObjectId reference or populated object
-  allocationDate: string;
-  expirationDate: string;
-  status: boolean;
+  section: string | null;
+  student: string; // name or 'Available'
+  plan: string; // plan name or '-'
+  joiningDate: string; // yyyy-mm-dd or '-'
+  expirationDate: string; // yyyy-mm-dd or '-'
+  status: "Occupied" | "Available";
+  feePaid: boolean;
 }
 
 export interface DashboardStats {
@@ -40,21 +42,55 @@ export interface DashboardStats {
 }
 
 export interface Seat {
+  // Simple representation currently used in UI grids
   seatNumber: string;
-  studentId?: string;
-  studentName?: string;
-  subscriptionPlan?: string;
-  allocatedDate?: string;
-  expiryDate?: string;
-  status: "Available" | "Occupied" | "Maintenance";
+  studentName?: string; // derived local label
+  subscriptionPlan?: string; // plan name
+  allocatedDate?: string; // joining date
+  expiryDate?: string; // expirationDate
+  status: "Available" | "Occupied";
 }
 
 export interface SeatManagementData {
   totalSeats: number;
   occupiedSeats: number;
   availableSeats: number;
-  maintenanceSeats: number;
   seats: Seat[];
+}
+
+// Raw seat management response from backend
+export interface SeatManagementApiResponse {
+  statistics: {
+    totalSeats: number;
+    occupiedSeats: number;
+    availableSeats: number;
+    sectionA: {total: number; occupied: number; available: number};
+    sectionB: {total: number; occupied: number; available: number};
+  };
+  seats: Array<{
+    seatNumber: string;
+    section: string | null;
+    student: string; // name or 'Available'
+    plan: string; // plan name or '-'
+    joiningDate: string; // yyyy-mm-dd or '-'
+    expirationDate: string; // yyyy-mm-dd or '-'
+    status: "Occupied" | "Available";
+    feePaid: boolean;
+  }>;
+  invalidSeats: Array<{
+    seatNumber: string;
+    studentName: string;
+    reason: string;
+  }>;
+}
+
+// Expiring user shape from subscription-ending endpoint
+export interface ExpiringUser {
+  name: string;
+  seatNumber: string;
+  expirationDate: string; // yyyy-mm-dd
+  daysLeft: number;
+  planName: string;
 }
 
 export interface ApiResponse<T> {

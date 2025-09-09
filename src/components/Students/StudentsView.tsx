@@ -43,21 +43,23 @@ const StudentsView: React.FC = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        console.log("Students: Fetching data...");
+        if (import.meta.env.DEV) console.log("Students: Fetching data...");
         const [studentsResponse, plansResponse] = await Promise.all([
           adminApi.getUsers(),
           adminApi.getSubscriptionPlans(),
         ]);
-        console.log("Students: Received data:", {
-          studentsResponse,
-          plansResponse,
-        });
+        if (import.meta.env.DEV)
+          console.log("Students: Received data:", {
+            studentsResponse,
+            plansResponse,
+          });
 
         // Handle direct array responses from backend
         setStudents(studentsResponse || []);
         setPlans(plansResponse || []);
 
-        console.log("Students: Data loaded successfully");
+        if (import.meta.env.DEV)
+          console.log("Students: Data loaded successfully");
       } catch (error) {
         console.error("Error fetching data:", error);
         showNotification("error", "Failed to fetch data from backend");
@@ -150,7 +152,7 @@ const StudentsView: React.FC = () => {
         address: editFormData.address,
         adharNumber: parseInt(editFormData.adharNumber),
         seatNumber: fullSeatNumber,
-        subscriptionPlan: editFormData.subscriptionPlan,
+        subscriptionPlan: editFormData.subscriptionPlan, // send planName string
         joiningDate: editFormData.joiningDate,
         feePaid: editFormData.feePaid,
         isActive: editFormData.isActive,
@@ -263,7 +265,10 @@ const StudentsView: React.FC = () => {
               <option>Pending</option>
               <option>Overdue</option>
             </select>
-            <button className="p-2 text-gray-500 hover:text-gray-700 border border-gray-300 rounded-lg" aria-label="Filter">
+            <button
+              className="p-2 text-gray-500 hover:text-gray-700 border border-gray-300 rounded-lg"
+              aria-label="Filter"
+            >
               <Filter className="w-5 h-5" />
             </button>
           </div>
@@ -349,24 +354,24 @@ const StudentsView: React.FC = () => {
                       <button
                         onClick={() => handleView(student)}
                         className="text-blue-600 hover:text-blue-900 transition-colors"
-                        aria-label={`View ${student.fullName}`}
-                        title={`View ${student.fullName}`}
+                        aria-label={`View ${student.name}`}
+                        title={`View ${student.name}`}
                       >
                         <Eye className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => handleEdit(student)}
                         className="text-green-600 hover:text-green-900 transition-colors"
-                        aria-label={`Edit ${student.fullName}`}
-                        title={`Edit ${student.fullName}`}
+                        aria-label={`Edit ${student.name}`}
+                        title={`Edit ${student.name}`}
                       >
                         <Edit className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => handleDelete(student)}
                         className="text-red-600 hover:text-red-900 transition-colors"
-                        aria-label={`Delete ${student.fullName}`}
-                        title={`Delete ${student.fullName}`}
+                        aria-label={`Delete ${student.name}`}
+                        title={`Delete ${student.name}`}
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>

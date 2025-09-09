@@ -71,10 +71,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({children}) => {
     email: string,
     password: string
   ): Promise<{success: boolean; error?: string}> => {
+    const start = performance.now();
     try {
       console.log("AuthContext: Attempting login...");
       const response = await adminApi.login({email, password});
-      console.log("AuthContext: Login response received:", response);
+      console.log(
+        "AuthContext: Login response received in",
+        Math.round(performance.now() - start),
+        "ms",
+        response
+      );
 
       // Handle direct token response (your backend format)
       const rawToken = response.token;
@@ -98,10 +104,21 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({children}) => {
       }
       return {success: false, error: "No token received from server"};
     } catch (error) {
-      console.error("Login failed:", error);
-      const errorMessage =
-        error instanceof Error ? error.message : "Login failed";
-      return {success: false, error: errorMessage};
+      const duration = Math.round(performance.now() - start);
+      let message = "Login failed";
+      if (error instanceof TypeError && error.message === "Failed to fetch") {
+        message =
+          "Network error: could not reach server. Check internet, backend URL, or CORS.";
+      } else if (error instanceof Error) {
+        message = error.message;
+      }
+      console.error(
+        "AuthContext: Login failed after",
+        duration,
+        "ms =>",
+        error
+      );
+      return {success: false, error: message};
     }
   };
 
