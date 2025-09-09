@@ -37,8 +37,6 @@ const getAuthToken = () => {
 };
 
 // API request helper
-let didHandleUnauthorized = false;
-
 const apiRequest = async <T>(
   endpoint: string,
   options: RequestInit = {}
@@ -48,9 +46,6 @@ const apiRequest = async <T>(
   const authHeaders = token
     ? {
         Authorization: `Bearer ${token}`,
-        // Possible alternate header names some middleware might require
-        "x-auth-token": token,
-        token: token,
       }
     : {};
 
