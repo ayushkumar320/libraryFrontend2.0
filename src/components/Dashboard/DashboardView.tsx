@@ -88,9 +88,12 @@ const DashboardView: React.FC = () => {
     if (
       !registrationForm.name ||
       !registrationForm.idNumber ||
-      !registrationForm.adharNumber
+      !registrationForm.adharNumber ||
+      !registrationForm.subscriptionPlan ||
+      !registrationForm.seatSection ||
+      !registrationForm.seatNumber
     ) {
-      showNotification("error", "Please fill all required fields");
+      showNotification("error", "Please fill all required fields including subscription plan and seat details");
       return;
     }
 
@@ -135,7 +138,29 @@ const DashboardView: React.FC = () => {
       });
     } catch (error) {
       console.error("Error registering student:", error);
-      showNotification("error", "Error registering student. Please try again.");
+      let errorMessage = "Error registering student. Please try again.";
+      
+      if (error instanceof Error) {
+        if (error.message.includes("HTTP_400")) {
+          if (error.message.includes("Subscription plan not found")) {
+            errorMessage = "Selected subscription plan is not available. Please refresh and select a valid plan.";
+          } else if (error.message.includes("Invalid subscriptionPlan ID format")) {
+            errorMessage = "Invalid subscription plan selected. Please select a valid plan.";
+          } else if (error.message.includes("already exists")) {
+            errorMessage = "Student with this Aadhar number, ID number, or seat already exists.";
+          } else {
+            errorMessage = "Invalid data provided. Please check all fields.";
+          }
+        } else if (error.message.includes("HTTP_401")) {
+          errorMessage = "Authentication failed. Please login again.";
+        } else if (error.message.includes("HTTP_500")) {
+          errorMessage = "Server error. Please try again later.";
+        } else {
+          errorMessage = `Registration failed: ${error.message}`;
+        }
+      }
+      
+      showNotification("error", errorMessage);
     }
   };
 
@@ -313,8 +338,8 @@ const DashboardView: React.FC = () => {
                 >
                   <option value="">Select plan</option>
                   {plans.map((plan) => (
-                    <option key={plan._id} value={plan.planName}>
-                      {plan.planName}
+                    <option key={plan._id} value={plan._id}>
+                      {plan.planName} - ₹{plan.price}
                     </option>
                   ))}
                 </select>

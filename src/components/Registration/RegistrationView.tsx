@@ -125,9 +125,9 @@ const RegistrationView: React.FC = () => {
       // Combine seat section and number
       const fullSeatNumber = `${formData.seatSection}${formData.seatNumber}`;
 
-      // Validate required fields (but allow empty subscription plan since we'll fix it)
-      if (!formData.name || !formData.idNumber || !formData.adharNumber) {
-        showNotification("error", "Please fill in all required fields");
+      // Validate required fields
+      if (!formData.name || !formData.idNumber || !formData.adharNumber || !formData.subscriptionPlan) {
+        showNotification("error", "Please fill in all required fields including subscription plan");
         setLoading(false);
         return;
       }
@@ -140,19 +140,21 @@ const RegistrationView: React.FC = () => {
         availablePlans: plans.map((p) => ({id: p._id, name: p.planName})),
       });
 
-      // IMMEDIATE FIX: Skip validation and force a valid ObjectId
-      console.log("=== FORCING REGISTRATION TO WORK ===");
-
-      // Force a valid subscription plan if it's empty or invalid
-      let finalSubscriptionPlan = formData.subscriptionPlan;
-      if (
-        !finalSubscriptionPlan ||
-        finalSubscriptionPlan.trim() === "" ||
-        !/^[0-9a-fA-F]{24}$/.test(finalSubscriptionPlan)
-      ) {
-        finalSubscriptionPlan = "68b9822755ca6df18c0fafa3"; // Known valid ObjectId
-        console.log("FORCED subscription plan to:", finalSubscriptionPlan);
+      // Validate subscription plan selection
+      if (!formData.subscriptionPlan || formData.subscriptionPlan.trim() === "") {
+        showNotification("error", "Please select a subscription plan");
+        setLoading(false);
+        return;
       }
+
+      // Validate ObjectId format
+      if (!/^[0-9a-fA-F]{24}$/.test(formData.subscriptionPlan)) {
+        showNotification("error", "Invalid subscription plan selected");
+        setLoading(false);
+        return;
+      }
+
+      const finalSubscriptionPlan = formData.subscriptionPlan;
 
       // Prepare data with proper types for backend (matching Postman format exactly)
       const submitData: any = {
@@ -202,26 +204,34 @@ const RegistrationView: React.FC = () => {
     } catch (error) {
       console.error("Registration error:", error);
       let errorMessage = "Error registering student. Please try again.";
+      
       if (error instanceof Error) {
+        console.log("Registration: Error details:", error.message);
+        
         // Extract more specific error message
         if (error.message.includes("HTTP_400")) {
-          errorMessage =
-            "Invalid data provided. Please check all fields and ensure ID/Aadhar numbers are unique.";
-        } else if (
-          error.message.includes("HTTP_409") ||
-          error.message.includes("duplicate")
-        ) {
-          errorMessage =
-            "Student with this Aadhar number, ID number, or seat already exists.";
+          if (error.message.includes("Subscription plan not found")) {
+            errorMessage = "Selected subscription plan is not available. Please refresh and select a valid plan.";
+          } else if (error.message.includes("Invalid subscriptionPlan ID format")) {
+            errorMessage = "Invalid subscription plan selected. Please select a valid plan.";
+          } else if (error.message.includes("Missing required fields")) {
+            errorMessage = "Please fill in all required fields.";
+          } else if (error.message.includes("already exists")) {
+            errorMessage = "Student with this Aadhar number, ID number, or seat already exists.";
+          } else {
+            errorMessage = "Invalid data provided. Please check all fields.";
+          }
+        } else if (error.message.includes("HTTP_401")) {
+          errorMessage = "Authentication failed. Please login again.";
         } else if (error.message.includes("HTTP_500")) {
           errorMessage = "Server error. Please try again later.";
-        } else if (error.message.includes("validation")) {
-          errorMessage =
-            "Validation error: Please check all required fields are filled correctly.";
+        } else if (error.message.includes("NETWORK_ERROR")) {
+          errorMessage = "Cannot connect to server. Please check your internet connection.";
         } else {
-          errorMessage = `Backend error: ${error.message}`;
+          errorMessage = `Registration failed: ${error.message}`;
         }
       }
+      
       console.log("Registration: Showing error:", errorMessage);
       showNotification("error", errorMessage);
     } finally {

@@ -15,7 +15,7 @@ const StudentsView: React.FC = () => {
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [editFormData, setEditFormData] = useState({
-    fullName: "",
+    name: "",
     age: "",
     subscriptionPlan: "",
     joiningDate: "",
@@ -95,12 +95,12 @@ const StudentsView: React.FC = () => {
     const seatNumber = seatMatch ? seatMatch[2] : "";
 
     setEditFormData({
-      fullName: student.name,
+      name: student.name,
       age: student.age?.toString() || "",
       subscriptionPlan:
         typeof student.subscriptionPlan === "string"
           ? student.subscriptionPlan
-          : student.subscriptionPlan.planName,
+          : student.subscriptionPlan._id,
       joiningDate: student.joiningDate.split("T")[0], // Format for date input
       address: student.address || "",
       adharNumber: student.adharNumber.toString(),
@@ -147,12 +147,12 @@ const StudentsView: React.FC = () => {
       // Combine seat section and number
       const fullSeatNumber = `${editFormData.seatSection}${editFormData.seatNumber}`;
       const submitData = {
-        name: editFormData.fullName,
+        name: editFormData.name,
         age: parseInt(editFormData.age),
         address: editFormData.address,
         adharNumber: parseInt(editFormData.adharNumber),
         seatNumber: fullSeatNumber,
-        subscriptionPlan: editFormData.subscriptionPlan, // send planName string
+        subscriptionPlan: editFormData.subscriptionPlan, // send ObjectId
         joiningDate: editFormData.joiningDate,
         feePaid: editFormData.feePaid,
         isActive: editFormData.isActive,
@@ -251,9 +251,11 @@ const StudentsView: React.FC = () => {
               className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option>All Plans</option>
-              <option>Monthly</option>
-              <option>Quarterly</option>
-              <option>Yearly</option>
+              {plans.map((plan) => (
+                <option key={plan._id} value={plan.planName}>
+                  {plan.planName}
+                </option>
+              ))}
             </select>
             <select
               value={statusFilter}
@@ -551,8 +553,8 @@ const StudentsView: React.FC = () => {
                     </label>
                     <input
                       type="text"
-                      name="fullName"
-                      value={editFormData.fullName}
+                      name="name"
+                      value={editFormData.name}
                       onChange={handleEditInputChange}
                       required
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -587,7 +589,7 @@ const StudentsView: React.FC = () => {
                     >
                       <option value="">Select plan</option>
                       {plans.map((plan) => (
-                        <option key={plan._id} value={plan.planName}>
+                        <option key={plan._id} value={plan._id}>
                           {plan.planName} - ₹{plan.price}
                         </option>
                       ))}

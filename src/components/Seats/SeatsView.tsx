@@ -1,7 +1,7 @@
 import React, {useState, useEffect} from "react";
 import {Search, Plus, User, X} from "lucide-react";
 import {adminApi} from "../../services/api";
-import {SeatManagementData, Student} from "../../types/api";
+import {SeatManagementData, Student, SubscriptionPlan} from "../../types/api";
 
 const SeatsView: React.FC = () => {
   const [seatData, setSeatData] = useState<SeatManagementData>({
@@ -20,6 +20,7 @@ const SeatsView: React.FC = () => {
   const [addSeatModalOpen, setAddSeatModalOpen] = useState(false);
   const [selectedSeat, setSelectedSeat] = useState<string>("");
   const [students, setStudents] = useState<Student[]>([]);
+  const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
   const [allocateLoading, setAllocateLoading] = useState(false);
 
   // Form data for allocation
@@ -50,9 +51,10 @@ const SeatsView: React.FC = () => {
     const fetchData = async () => {
       try {
         console.log("Seats: Fetching data...");
-        const [seatResponse, studentsResponse] = await Promise.all([
+        const [seatResponse, studentsResponse, plansResponse] = await Promise.all([
           adminApi.getSeatManagement(),
           adminApi.getUsers(),
+          adminApi.getSubscriptionPlans(),
         ]);
         console.log("Seats: Received data:", {seatResponse, studentsResponse});
 
@@ -69,6 +71,7 @@ const SeatsView: React.FC = () => {
         }
 
         setStudents(studentsResponse || []);
+        setPlans(plansResponse || []);
       } catch (error) {
         console.error("Error fetching data:", error);
         showNotification("error", "Failed to fetch data from backend");
@@ -131,20 +134,30 @@ const SeatsView: React.FC = () => {
         return;
       }
 
-      // Calculate expiry date based on subscription plan
+      // Find the selected plan to get duration
+      const selectedPlan = plans.find(p => p._id === allocationForm.subscriptionPlan);
+      if (!selectedPlan) {
+        showNotification("error", "Selected subscription plan not found.");
+        return;
+      }
+
+      // Calculate expiry date based on subscription plan duration
       const today = new Date();
       const expiryDate = new Date(today);
+      const durationLower = selectedPlan.duration.toLowerCase();
 
-      switch (allocationForm.subscriptionPlan) {
-        case "Monthly":
-          expiryDate.setMonth(today.getMonth() + 1);
-          break;
-        case "Quarterly":
-          expiryDate.setMonth(today.getMonth() + 3);
-          break;
-        case "Yearly":
-          expiryDate.setFullYear(today.getFullYear() + 1);
-          break;
+      if (durationLower.includes("day")) {
+        const days = parseInt(selectedPlan.duration.match(/\d+/)?.[0] || "30");
+        expiryDate.setDate(today.getDate() + days);
+      } else if (durationLower.includes("week")) {
+        const weeks = parseInt(selectedPlan.duration.match(/\d+/)?.[0] || "4");
+        expiryDate.setDate(today.getDate() + weeks * 7);
+      } else if (durationLower.includes("month")) {
+        const months = parseInt(selectedPlan.duration.match(/\d+/)?.[0] || "1");
+        expiryDate.setMonth(today.getMonth() + months);
+      } else if (durationLower.includes("year")) {
+        const years = parseInt(selectedPlan.duration.match(/\d+/)?.[0] || "1");
+        expiryDate.setFullYear(today.getFullYear() + years);
       }
 
       // Update seat via API
@@ -152,7 +165,7 @@ const SeatsView: React.FC = () => {
       await adminApi.updateSeat(selectedSeat, {
         status: "Occupied",
         studentName: selectedStudent.name,
-        subscriptionPlan: allocationForm.subscriptionPlan,
+        subscriptionPlan: selectedPlan.planName,
         allocatedDate: today.toISOString().split("T")[0],
         expiryDate: expiryDate.toISOString().split("T")[0],
       });
@@ -613,9 +626,11 @@ const SeatsView: React.FC = () => {
                     aria-label="Select subscription plan"
                   >
                     <option value="">Select a plan</option>
-                    <option value="Monthly">Monthly</option>
-                    <option value="Quarterly">Quarterly</option>
-                    <option value="Yearly">Yearly</option>
+                    {plans.map((plan) => (
+                      <option key={plan._id} value={plan._id}>
+                        {plan.planName} - ₹{plan.price}
+                      </option>
+                    ))}
                   </select>
                 </div>
               </form>
