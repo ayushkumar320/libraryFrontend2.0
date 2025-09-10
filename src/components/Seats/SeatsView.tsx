@@ -57,11 +57,12 @@ const SeatsView: React.FC = () => {
     const fetchData = async () => {
       try {
         console.log("Seats: Fetching data...");
-        const [seatResponse, studentsResponse, plansResponse] = await Promise.all([
-          adminApi.getSeatManagement(),
-          adminApi.getUsers(),
-          adminApi.getSubscriptionPlans(),
-        ]);
+        const [seatResponse, studentsResponse, plansResponse] =
+          await Promise.all([
+            adminApi.getSeatManagement(),
+            adminApi.getUsers(),
+            adminApi.getSubscriptionPlans(),
+          ]);
         console.log("Seats: Received data:", {seatResponse, studentsResponse});
 
         if (seatResponse?.seats) {
@@ -123,23 +124,26 @@ const SeatsView: React.FC = () => {
   };
 
   const handleDeleteSeat = async (seatNumber: string) => {
-    if (!window.confirm(`Are you sure you want to delete seat ${seatNumber}?`)) {
+    if (
+      !window.confirm(`Are you sure you want to delete seat ${seatNumber}?`)
+    ) {
       return;
     }
     try {
       await adminApi.deleteSeat(seatNumber);
       await refreshSeats();
       showNotification("success", `Seat ${seatNumber} deleted successfully!`);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error deleting seat:", error);
-      showNotification("error", "Failed to delete seat");
+      const errorMessage = error?.message || "Failed to delete seat";
+      showNotification("error", errorMessage);
     }
   };
 
   const handleSeatSelection = (seatNumber: string) => {
-    setSelectedSeats(prev => 
-      prev.includes(seatNumber) 
-        ? prev.filter(s => s !== seatNumber)
+    setSelectedSeats((prev) =>
+      prev.includes(seatNumber)
+        ? prev.filter((s) => s !== seatNumber)
         : [...prev, seatNumber]
     );
   };
@@ -149,21 +153,30 @@ const SeatsView: React.FC = () => {
       showNotification("error", "Please select seats to delete");
       return;
     }
-    
-    if (!window.confirm(`Are you sure you want to delete ${selectedSeats.length} selected seat(s)?`)) {
+
+    if (
+      !window.confirm(
+        `Are you sure you want to delete ${selectedSeats.length} selected seat(s)?`
+      )
+    ) {
       return;
     }
-    
+
     try {
-      for (const seatNumber of selectedSeats) {
-        await adminApi.deleteSeat(seatNumber);
-      }
+      const deletePromises = selectedSeats.map((seatNumber) =>
+        adminApi.deleteSeat(seatNumber)
+      );
+      await Promise.all(deletePromises);
       await refreshSeats();
       setSelectedSeats([]);
-      showNotification("success", `${selectedSeats.length} seat(s) deleted successfully!`);
-    } catch (error) {
+      showNotification(
+        "success",
+        `${selectedSeats.length} seat(s) deleted successfully!`
+      );
+    } catch (error: any) {
       console.error("Error deleting seats:", error);
-      showNotification("error", "Failed to delete some seats");
+      const errorMessage = error?.message || "Failed to delete some seats";
+      showNotification("error", errorMessage);
     }
   };
 
@@ -201,7 +214,9 @@ const SeatsView: React.FC = () => {
       }
 
       // Find the selected plan to get duration
-      const selectedPlan = plans.find(p => p._id === allocationForm.subscriptionPlan);
+      const selectedPlan = plans.find(
+        (p) => p._id === allocationForm.subscriptionPlan
+      );
       if (!selectedPlan) {
         showNotification("error", "Selected subscription plan not found.");
         return;
@@ -281,7 +296,7 @@ const SeatsView: React.FC = () => {
 
   // Generate seat grid for visual display
   const generateSeatGrid = (section: "A" | "B") => {
-    const maxSeats = section === "A" ? 66 : 99;
+    const maxSeats = section === "A" ? 66 : 39;
     const seats = [];
 
     for (let i = 1; i <= maxSeats; i++) {
@@ -413,7 +428,7 @@ const SeatsView: React.FC = () => {
                     : "text-gray-600 hover:text-gray-900"
                 }`}
               >
-                Section B (1-99)
+                Section B (1-39)
               </button>
             </div>
           </div>
@@ -488,7 +503,7 @@ const SeatsView: React.FC = () => {
       <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
         <h4 className="text-lg font-semibold text-gray-900 mb-4">
           Section {selectedSection} (
-          {selectedSection === "A" ? "66 seats" : "99 seats"})
+          {selectedSection === "A" ? "66 seats" : "39 seats"})
         </h4>
         <div className="grid grid-cols-11 gap-2">
           {generateSeatGrid(selectedSection).map((seat) => (
@@ -840,7 +855,7 @@ const SeatsView: React.FC = () => {
                     <option value="B">Section B</option>
                   </select>
                 </div>
-                
+
                 {addSeatForm.addMode === "single" ? (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -855,14 +870,22 @@ const SeatsView: React.FC = () => {
                           singleSeatNumber: e.target.value,
                         }))
                       }
-                      placeholder="e.g., 67"
+                      placeholder={`e.g., ${
+                        addSeatForm.section === "A" ? "67" : "40"
+                      }`}
                       min="1"
+                      max={addSeatForm.section === "A" ? "66" : "39"}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                       required
                     />
                     <div className="bg-blue-50 p-3 rounded-lg mt-2">
                       <p className="text-sm text-blue-800">
-                        This will add seat {addSeatForm.section}{addSeatForm.singleSeatNumber || "X"}
+                        This will add seat {addSeatForm.section}
+                        {addSeatForm.singleSeatNumber || "X"}
+                      </p>
+                      <p className="text-xs text-blue-600 mt-1">
+                        Section {addSeatForm.section} allows seats 1-
+                        {addSeatForm.section === "A" ? "66" : "39"}
                       </p>
                     </div>
                   </div>
@@ -881,8 +904,11 @@ const SeatsView: React.FC = () => {
                             startNumber: e.target.value,
                           }))
                         }
-                        placeholder="e.g., 67"
+                        placeholder={`e.g., ${
+                          addSeatForm.section === "A" ? "67" : "40"
+                        }`}
                         min="1"
+                        max={addSeatForm.section === "A" ? "66" : "39"}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                         required
                       />
@@ -900,8 +926,11 @@ const SeatsView: React.FC = () => {
                             endNumber: e.target.value,
                           }))
                         }
-                        placeholder="e.g., 70"
+                        placeholder={`e.g., ${
+                          addSeatForm.section === "A" ? "66" : "39"
+                        }`}
                         min="1"
+                        max={addSeatForm.section === "A" ? "66" : "39"}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                         required
                       />
@@ -909,8 +938,13 @@ const SeatsView: React.FC = () => {
                     <div className="col-span-2 bg-blue-50 p-3 rounded-lg">
                       <p className="text-sm text-blue-800">
                         This will add seats from {addSeatForm.section}
-                        {addSeatForm.startNumber || "X"} to {addSeatForm.section}
+                        {addSeatForm.startNumber || "X"} to{" "}
+                        {addSeatForm.section}
                         {addSeatForm.endNumber || "Y"}
+                      </p>
+                      <p className="text-xs text-blue-600 mt-1">
+                        Section {addSeatForm.section} allows seats 1-
+                        {addSeatForm.section === "A" ? "66" : "39"}
                       </p>
                     </div>
                   </div>
@@ -927,26 +961,60 @@ const SeatsView: React.FC = () => {
               <button
                 onClick={async () => {
                   try {
+                    // Validate seat number ranges for each section
+                    const maxSeats = addSeatForm.section === "A" ? 66 : 39;
+
                     if (addSeatForm.addMode === "single") {
-                      const seatNum = parseInt(addSeatForm.singleSeatNumber, 10);
-                      if (isNaN(seatNum)) {
-                        showNotification("error", "Please enter a valid seat number");
+                      const seatNum = parseInt(
+                        addSeatForm.singleSeatNumber,
+                        10
+                      );
+                      if (isNaN(seatNum) || seatNum < 1) {
+                        showNotification(
+                          "error",
+                          "Please enter a valid seat number (minimum 1)"
+                        );
+                        return;
+                      }
+                      if (seatNum > maxSeats) {
+                        showNotification(
+                          "error",
+                          `Seat number cannot exceed ${maxSeats} for Section ${addSeatForm.section}`
+                        );
                         return;
                       }
                       const seatNumber = `${addSeatForm.section}${seatNum}`;
-                      await adminApi.addSeat({ seatNumber });
+                      await adminApi.addSeat({seatNumber});
                       await refreshSeats();
-                      showNotification("success", `Seat ${seatNumber} added successfully!`);
+                      showNotification(
+                        "success",
+                        `Seat ${seatNumber} added successfully!`
+                      );
                     } else {
                       const start = parseInt(addSeatForm.startNumber, 10);
                       const end = parseInt(addSeatForm.endNumber, 10);
-                      if (isNaN(start) || isNaN(end) || end < start) {
-                        showNotification("error", "Invalid seat range");
+                      if (
+                        isNaN(start) ||
+                        isNaN(end) ||
+                        end < start ||
+                        start < 1
+                      ) {
+                        showNotification(
+                          "error",
+                          "Invalid seat range. Start and end must be valid numbers, and start must be at least 1"
+                        );
+                        return;
+                      }
+                      if (end > maxSeats) {
+                        showNotification(
+                          "error",
+                          `End seat number cannot exceed ${maxSeats} for Section ${addSeatForm.section}`
+                        );
                         return;
                       }
                       for (let num = start; num <= end; num++) {
                         const seatNumber = `${addSeatForm.section}${num}`;
-                        await adminApi.addSeat({ seatNumber });
+                        await adminApi.addSeat({seatNumber});
                       }
                       await refreshSeats();
                       showNotification(
@@ -1001,22 +1069,30 @@ const SeatsView: React.FC = () => {
                     Selected Seats ({selectedSeats.length})
                   </h3>
                   {selectedSeats.length === 0 ? (
-                    <p className="text-gray-500">No seats selected. Please select seats from the grid above.</p>
+                    <p className="text-gray-500">
+                      No seats selected. Please select seats from the grid
+                      above.
+                    </p>
                   ) : (
                     <div className="grid grid-cols-4 gap-2">
                       {selectedSeats.map((seatNumber) => (
-                        <div key={seatNumber} className="bg-gray-100 p-2 rounded text-center">
+                        <div
+                          key={seatNumber}
+                          className="bg-gray-100 p-2 rounded text-center"
+                        >
                           {seatNumber}
                         </div>
                       ))}
                     </div>
                   )}
                 </div>
-                
+
                 {selectedSeats.length > 0 && (
                   <div className="space-y-4">
                     <div className="border-t pt-4">
-                      <h4 className="text-md font-medium text-gray-900 mb-3">Bulk Actions</h4>
+                      <h4 className="text-md font-medium text-gray-900 mb-3">
+                        Bulk Actions
+                      </h4>
                       <div className="flex space-x-3">
                         <button
                           onClick={handleBulkDeleteSeats}
@@ -1102,100 +1178,137 @@ const SeatsView: React.FC = () => {
                   </span>
                 </div>
               </div>
-              
-              {selectedSeatDetails.students && selectedSeatDetails.students.length > 0 && (
-                <div className="mt-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                    Assigned Students
-                  </h3>
-                  <div className="space-y-4">
-                    {selectedSeatDetails.students.map((student: any, index: number) => (
-                      <div key={index} className="bg-gray-50 p-4 rounded-lg">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                              Student Name
-                            </label>
-                            <p className="text-sm text-gray-900">{student.name}</p>
+
+              {selectedSeatDetails.students &&
+                selectedSeatDetails.students.length > 0 && (
+                  <div className="mt-6">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                      Assigned Students
+                    </h3>
+                    <div className="space-y-4">
+                      {selectedSeatDetails.students.map(
+                        (student: any, index: number) => (
+                          <div
+                            key={index}
+                            className="bg-gray-50 p-4 rounded-lg"
+                          >
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                  Student Name
+                                </label>
+                                <p className="text-sm text-gray-900">
+                                  {student.name}
+                                </p>
+                              </div>
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                  Father's Name
+                                </label>
+                                <p className="text-sm text-gray-900">
+                                  {student.fatherName || "-"}
+                                </p>
+                              </div>
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                  Date of Birth
+                                </label>
+                                <p className="text-sm text-gray-900">
+                                  {student.dateOfBirth
+                                    ? new Date(
+                                        student.dateOfBirth
+                                      ).toLocaleDateString()
+                                    : "-"}
+                                </p>
+                              </div>
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                  Slot
+                                </label>
+                                <p className="text-sm text-gray-900">
+                                  {student.slot || "-"}
+                                </p>
+                              </div>
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                  Plan
+                                </label>
+                                <p className="text-sm text-gray-900">
+                                  {student.plan || "-"}
+                                </p>
+                              </div>
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                  Fee Status
+                                </label>
+                                <span
+                                  className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                                    student.feePaid
+                                      ? "bg-green-100 text-green-800"
+                                      : "bg-yellow-100 text-yellow-800"
+                                  }`}
+                                >
+                                  {student.feePaid ? "Paid" : "Pending"}
+                                </span>
+                              </div>
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                  Joining Date
+                                </label>
+                                <p className="text-sm text-gray-900">
+                                  {student.joiningDate
+                                    ? new Date(
+                                        student.joiningDate
+                                      ).toLocaleDateString()
+                                    : "-"}
+                                </p>
+                              </div>
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                  Expiry Date
+                                </label>
+                                <p className="text-sm text-gray-900">
+                                  {student.expiryDate
+                                    ? new Date(
+                                        student.expiryDate
+                                      ).toLocaleDateString()
+                                    : "-"}
+                                </p>
+                              </div>
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                  Total Fee
+                                </label>
+                                <p className="text-sm text-gray-900">
+                                  ₹
+                                  {(() => {
+                                    const planPrice =
+                                      plans.find(
+                                        (p) => p.planName === student.plan
+                                      )?.price || 0;
+                                    const lockerFee = student.lockerService
+                                      ? 100
+                                      : 0;
+                                    return (
+                                      planPrice + lockerFee
+                                    ).toLocaleString("en-IN");
+                                  })()}
+                                </p>
+                              </div>
+                            </div>
                           </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                              Father's Name
-                            </label>
-                            <p className="text-sm text-gray-900">{student.fatherName || "-"}</p>
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                              Date of Birth
-                            </label>
-                            <p className="text-sm text-gray-900">
-                              {student.dateOfBirth ? new Date(student.dateOfBirth).toLocaleDateString() : "-"}
-                            </p>
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                              Slot
-                            </label>
-                            <p className="text-sm text-gray-900">{student.slot || "-"}</p>
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                              Plan
-                            </label>
-                            <p className="text-sm text-gray-900">{student.plan || "-"}</p>
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                              Fee Status
-                            </label>
-                            <span
-                              className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                                student.feePaid
-                                  ? "bg-green-100 text-green-800"
-                                  : "bg-yellow-100 text-yellow-800"
-                              }`}
-                            >
-                              {student.feePaid ? "Paid" : "Pending"}
-                            </span>
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                              Joining Date
-                            </label>
-                            <p className="text-sm text-gray-900">
-                              {student.joiningDate ? new Date(student.joiningDate).toLocaleDateString() : "-"}
-                            </p>
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                              Expiry Date
-                            </label>
-                            <p className="text-sm text-gray-900">
-                              {student.expiryDate ? new Date(student.expiryDate).toLocaleDateString() : "-"}
-                            </p>
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                              Total Fee
-                            </label>
-                            <p className="text-sm text-gray-900">
-                              ₹{(() => {
-                                const planPrice = plans.find(p => p.planName === student.plan)?.price || 0;
-                                const lockerFee = student.lockerService ? 100 : 0;
-                                return (planPrice + lockerFee).toLocaleString("en-IN");
-                              })()}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
+                        )
+                      )}
+                    </div>
                   </div>
-                </div>
-              )}
-              
-              {(!selectedSeatDetails.students || selectedSeatDetails.students.length === 0) && (
+                )}
+
+              {(!selectedSeatDetails.students ||
+                selectedSeatDetails.students.length === 0) && (
                 <div className="mt-6 text-center py-8">
-                  <p className="text-gray-500">No students assigned to this seat</p>
+                  <p className="text-gray-500">
+                    No students assigned to this seat
+                  </p>
                   <button
                     onClick={() => {
                       setSeatDetailsModalOpen(false);
