@@ -18,7 +18,8 @@ const DashboardView: React.FC = () => {
   const [registrationForm, setRegistrationForm] = useState({
     name: "", // Changed from fullName
     idNumber: "", // Changed from email
-    age: "",
+    dateOfBirth: "",
+    fatherName: "",
     slot: "",
     adharNumber: "", // Will be converted to number
     address: "",
@@ -106,7 +107,8 @@ const DashboardView: React.FC = () => {
         name: registrationForm.name,
         slot: registrationForm.slot || undefined,
         idNumber: parseInt(registrationForm.idNumber),
-        age: parseInt(registrationForm.age),
+        dateOfBirth: registrationForm.dateOfBirth || undefined,
+        fatherName: registrationForm.fatherName || undefined,
         adharNumber: parseInt(registrationForm.adharNumber),
         address: registrationForm.address,
         examPreparingFor: registrationForm.examPreparingFor || undefined,
@@ -125,7 +127,8 @@ const DashboardView: React.FC = () => {
       setRegistrationForm({
         name: "",
         idNumber: "",
-        age: "",
+        dateOfBirth: "",
+        fatherName: "",
         slot: "",
         adharNumber: "",
         address: "",
@@ -283,21 +286,39 @@ const DashboardView: React.FC = () => {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Age
+                  Date of Birth
                 </label>
                 <input
-                  type="number"
-                  placeholder="Enter age"
-                  value={registrationForm.age}
+                  type="date"
+                  value={registrationForm.dateOfBirth}
                   onChange={(e) =>
                     setRegistrationForm((prev) => ({
                       ...prev,
-                      age: e.target.value,
+                      dateOfBirth: e.target.value,
                     }))
                   }
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Father's Name
+                </label>
+                <input
+                  type="text"
+                  placeholder="Enter father's name"
+                  value={registrationForm.fatherName}
+                  onChange={(e) =>
+                    setRegistrationForm((prev) => ({
+                      ...prev,
+                      fatherName: e.target.value,
+                    }))
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Aadhar Number

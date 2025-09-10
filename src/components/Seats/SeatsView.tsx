@@ -18,9 +18,11 @@ const SeatsView: React.FC = () => {
   // Modal states
   const [allocateModalOpen, setAllocateModalOpen] = useState(false);
   const [addSeatModalOpen, setAddSeatModalOpen] = useState(false);
+  const [editSeatModalOpen, setEditSeatModalOpen] = useState(false);
   const [seatDetailsModalOpen, setSeatDetailsModalOpen] = useState(false);
   const [selectedSeat, setSelectedSeat] = useState<string>("");
   const [selectedSeatDetails, setSelectedSeatDetails] = useState<any>(null);
+  const [selectedSeats, setSelectedSeats] = useState<string[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
   const [allocateLoading, setAllocateLoading] = useState(false);
@@ -36,6 +38,8 @@ const SeatsView: React.FC = () => {
     section: "A" as "A" | "B",
     startNumber: "",
     endNumber: "",
+    addMode: "single" as "single" | "row", // New field for add mode
+    singleSeatNumber: "", // For single seat addition
   });
 
   // Notification state
@@ -130,6 +134,41 @@ const SeatsView: React.FC = () => {
       console.error("Error deleting seat:", error);
       showNotification("error", "Failed to delete seat");
     }
+  };
+
+  const handleSeatSelection = (seatNumber: string) => {
+    setSelectedSeats(prev => 
+      prev.includes(seatNumber) 
+        ? prev.filter(s => s !== seatNumber)
+        : [...prev, seatNumber]
+    );
+  };
+
+  const handleBulkDeleteSeats = async () => {
+    if (selectedSeats.length === 0) {
+      showNotification("error", "Please select seats to delete");
+      return;
+    }
+    
+    if (!window.confirm(`Are you sure you want to delete ${selectedSeats.length} selected seat(s)?`)) {
+      return;
+    }
+    
+    try {
+      for (const seatNumber of selectedSeats) {
+        await adminApi.deleteSeat(seatNumber);
+      }
+      await refreshSeats();
+      setSelectedSeats([]);
+      showNotification("success", `${selectedSeats.length} seat(s) deleted successfully!`);
+    } catch (error) {
+      console.error("Error deleting seats:", error);
+      showNotification("error", "Failed to delete some seats");
+    }
+  };
+
+  const handleEditSeat = () => {
+    setEditSeatModalOpen(true);
   };
 
   const refreshSeats = async () => {
@@ -378,13 +417,31 @@ const SeatsView: React.FC = () => {
               </button>
             </div>
           </div>
-          <button
-            onClick={() => setAddSeatModalOpen(true)}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Add Seats</span>
-          </button>
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={() => setAddSeatModalOpen(true)}
+              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Add Seats</span>
+            </button>
+            <button
+              onClick={handleEditSeat}
+              className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center space-x-2"
+            >
+              <User className="w-4 h-4" />
+              <span>Edit Seats</span>
+            </button>
+            {selectedSeats.length > 0 && (
+              <button
+                onClick={handleBulkDeleteSeats}
+                className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors flex items-center space-x-2"
+              >
+                <X className="w-4 h-4" />
+                <span>Delete Selected ({selectedSeats.length})</span>
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Search */}
@@ -436,19 +493,27 @@ const SeatsView: React.FC = () => {
         <div className="grid grid-cols-11 gap-2">
           {generateSeatGrid(selectedSection).map((seat) => (
             <div key={seat.number} className="relative group">
-              <button
-                onClick={() => handleSeatClick(seat.number)}
-                className={`w-12 h-12 rounded-lg font-medium text-sm transition-all hover:scale-105 ${getSeatColor(
-                  seat.status
-                )} cursor-pointer hover:opacity-80`}
-                title={
-                  seat.student
-                    ? `${seat.number} - ${seat.student} (Click for details)`
-                    : `${seat.number} (Click for details)`
-                }
-              >
-                {seat.number.replace(selectedSection, "")}
-              </button>
+              <div className="flex items-center space-x-1">
+                <input
+                  type="checkbox"
+                  checked={selectedSeats.includes(seat.number)}
+                  onChange={() => handleSeatSelection(seat.number)}
+                  className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+                />
+                <button
+                  onClick={() => handleSeatClick(seat.number)}
+                  className={`w-12 h-12 rounded-lg font-medium text-sm transition-all hover:scale-105 ${getSeatColor(
+                    seat.status
+                  )} cursor-pointer hover:opacity-80`}
+                  title={
+                    seat.student
+                      ? `${seat.number} - ${seat.student} (Click for details)`
+                      : `${seat.number} (Click for details)`
+                  }
+                >
+                  {seat.number.replace(selectedSection, "")}
+                </button>
+              </div>
               {seat.student && (
                 <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10">
                   {seat.student}
@@ -720,6 +785,43 @@ const SeatsView: React.FC = () => {
               <form className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Add Mode
+                  </label>
+                  <div className="flex space-x-4">
+                    <label className="flex items-center">
+                      <input
+                        type="radio"
+                        value="single"
+                        checked={addSeatForm.addMode === "single"}
+                        onChange={(e) =>
+                          setAddSeatForm((prev) => ({
+                            ...prev,
+                            addMode: e.target.value as "single" | "row",
+                          }))
+                        }
+                        className="mr-2"
+                      />
+                      Single Seat
+                    </label>
+                    <label className="flex items-center">
+                      <input
+                        type="radio"
+                        value="row"
+                        checked={addSeatForm.addMode === "row"}
+                        onChange={(e) =>
+                          setAddSeatForm((prev) => ({
+                            ...prev,
+                            addMode: e.target.value as "single" | "row",
+                          }))
+                        }
+                        className="mr-2"
+                      />
+                      Row of Seats
+                    </label>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
                     Section
                   </label>
                   <select
@@ -738,18 +840,19 @@ const SeatsView: React.FC = () => {
                     <option value="B">Section B</option>
                   </select>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                
+                {addSeatForm.addMode === "single" ? (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Start Number
+                      Seat Number
                     </label>
                     <input
                       type="number"
-                      value={addSeatForm.startNumber}
+                      value={addSeatForm.singleSeatNumber}
                       onChange={(e) =>
                         setAddSeatForm((prev) => ({
                           ...prev,
-                          startNumber: e.target.value,
+                          singleSeatNumber: e.target.value,
                         }))
                       }
                       placeholder="e.g., 67"
@@ -757,34 +860,61 @@ const SeatsView: React.FC = () => {
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                       required
                     />
+                    <div className="bg-blue-50 p-3 rounded-lg mt-2">
+                      <p className="text-sm text-blue-800">
+                        This will add seat {addSeatForm.section}{addSeatForm.singleSeatNumber || "X"}
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      End Number
-                    </label>
-                    <input
-                      type="number"
-                      value={addSeatForm.endNumber}
-                      onChange={(e) =>
-                        setAddSeatForm((prev) => ({
-                          ...prev,
-                          endNumber: e.target.value,
-                        }))
-                      }
-                      placeholder="e.g., 70"
-                      min="1"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      required
-                    />
+                ) : (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Start Number
+                      </label>
+                      <input
+                        type="number"
+                        value={addSeatForm.startNumber}
+                        onChange={(e) =>
+                          setAddSeatForm((prev) => ({
+                            ...prev,
+                            startNumber: e.target.value,
+                          }))
+                        }
+                        placeholder="e.g., 67"
+                        min="1"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        End Number
+                      </label>
+                      <input
+                        type="number"
+                        value={addSeatForm.endNumber}
+                        onChange={(e) =>
+                          setAddSeatForm((prev) => ({
+                            ...prev,
+                            endNumber: e.target.value,
+                          }))
+                        }
+                        placeholder="e.g., 70"
+                        min="1"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        required
+                      />
+                    </div>
+                    <div className="col-span-2 bg-blue-50 p-3 rounded-lg">
+                      <p className="text-sm text-blue-800">
+                        This will add seats from {addSeatForm.section}
+                        {addSeatForm.startNumber || "X"} to {addSeatForm.section}
+                        {addSeatForm.endNumber || "Y"}
+                      </p>
+                    </div>
                   </div>
-                </div>
-                <div className="bg-blue-50 p-3 rounded-lg">
-                  <p className="text-sm text-blue-800">
-                    This will add seats from {addSeatForm.section}
-                    {addSeatForm.startNumber || "X"} to {addSeatForm.section}
-                    {addSeatForm.endNumber || "Y"}
-                  </p>
-                </div>
+                )}
               </form>
             </div>
             <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-end space-x-3">
@@ -796,23 +926,43 @@ const SeatsView: React.FC = () => {
               </button>
               <button
                 onClick={async () => {
-                  const start = parseInt(addSeatForm.startNumber, 10);
-                  const end = parseInt(addSeatForm.endNumber, 10);
-                  if (isNaN(start) || isNaN(end) || end < start) {
-                    showNotification("error", "Invalid seat range");
-                    return;
-                  }
                   try {
-                    for (let num = start; num <= end; num++) {
-                      const seatNumber = `${addSeatForm.section}${num}`;
+                    if (addSeatForm.addMode === "single") {
+                      const seatNum = parseInt(addSeatForm.singleSeatNumber, 10);
+                      if (isNaN(seatNum)) {
+                        showNotification("error", "Please enter a valid seat number");
+                        return;
+                      }
+                      const seatNumber = `${addSeatForm.section}${seatNum}`;
                       await adminApi.addSeat({ seatNumber });
+                      await refreshSeats();
+                      showNotification("success", `Seat ${seatNumber} added successfully!`);
+                    } else {
+                      const start = parseInt(addSeatForm.startNumber, 10);
+                      const end = parseInt(addSeatForm.endNumber, 10);
+                      if (isNaN(start) || isNaN(end) || end < start) {
+                        showNotification("error", "Invalid seat range");
+                        return;
+                      }
+                      for (let num = start; num <= end; num++) {
+                        const seatNumber = `${addSeatForm.section}${num}`;
+                        await adminApi.addSeat({ seatNumber });
+                      }
+                      await refreshSeats();
+                      showNotification(
+                        "success",
+                        `${end - start + 1} seats added successfully!`
+                      );
                     }
-                    await refreshSeats();
-                    showNotification(
-                      "success",
-                      `${end - start + 1} seats added successfully!`
-                    );
                     setAddSeatModalOpen(false);
+                    // Reset form
+                    setAddSeatForm({
+                      section: "A",
+                      startNumber: "",
+                      endNumber: "",
+                      addMode: "single",
+                      singleSeatNumber: "",
+                    });
                   } catch (e) {
                     console.error("Add seats error", e);
                     showNotification("error", "Failed to add seats");
@@ -820,7 +970,82 @@ const SeatsView: React.FC = () => {
                 }}
                 className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 transition-colors"
               >
-                Add Seats
+                Add {addSeatForm.addMode === "single" ? "Seat" : "Seats"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Seats Modal */}
+      {editSeatModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 animate-fadeIn">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 transform transition-all duration-300 animate-slideIn">
+            <div className="p-6 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-semibold text-gray-900">
+                  Edit Seats
+                </h2>
+                <button
+                  onClick={() => setEditSeatModalOpen(false)}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+            </div>
+            <div className="p-6">
+              <div className="space-y-4">
+                <div>
+                  <h3 className="text-lg font-medium text-gray-900 mb-4">
+                    Selected Seats ({selectedSeats.length})
+                  </h3>
+                  {selectedSeats.length === 0 ? (
+                    <p className="text-gray-500">No seats selected. Please select seats from the grid above.</p>
+                  ) : (
+                    <div className="grid grid-cols-4 gap-2">
+                      {selectedSeats.map((seatNumber) => (
+                        <div key={seatNumber} className="bg-gray-100 p-2 rounded text-center">
+                          {seatNumber}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                
+                {selectedSeats.length > 0 && (
+                  <div className="space-y-4">
+                    <div className="border-t pt-4">
+                      <h4 className="text-md font-medium text-gray-900 mb-3">Bulk Actions</h4>
+                      <div className="flex space-x-3">
+                        <button
+                          onClick={handleBulkDeleteSeats}
+                          className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors flex items-center space-x-2"
+                        >
+                          <X className="w-4 h-4" />
+                          <span>Delete Selected</span>
+                        </button>
+                        <button
+                          onClick={() => {
+                            setSelectedSeats([]);
+                            showNotification("success", "Selection cleared");
+                          }}
+                          className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors"
+                        >
+                          Clear Selection
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-end space-x-3">
+              <button
+                onClick={() => setEditSeatModalOpen(false)}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+              >
+                Close
               </button>
             </div>
           </div>
@@ -947,6 +1172,18 @@ const SeatsView: React.FC = () => {
                             </label>
                             <p className="text-sm text-gray-900">
                               {student.expiryDate ? new Date(student.expiryDate).toLocaleDateString() : "-"}
+                            </p>
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Total Fee
+                            </label>
+                            <p className="text-sm text-gray-900">
+                              ₹{(() => {
+                                const planPrice = plans.find(p => p.planName === student.plan)?.price || 0;
+                                const lockerFee = student.lockerService ? 100 : 0;
+                                return (planPrice + lockerFee).toLocaleString("en-IN");
+                              })()}
                             </p>
                           </div>
                         </div>
