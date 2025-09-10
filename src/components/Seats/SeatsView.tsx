@@ -281,7 +281,7 @@ const SeatsView: React.FC = () => {
 
   // Generate seat grid for visual display
   const generateSeatGrid = (section: "A" | "B") => {
-    const maxSeats = section === "A" ? 66 : 39;
+    const maxSeats = section === "A" ? 66 : 99;
     const seats = [];
 
     for (let i = 1; i <= maxSeats; i++) {
@@ -413,7 +413,7 @@ const SeatsView: React.FC = () => {
                     : "text-gray-600 hover:text-gray-900"
                 }`}
               >
-                Section B (1-39)
+                Section B (1-99)
               </button>
             </div>
           </div>
@@ -488,7 +488,7 @@ const SeatsView: React.FC = () => {
       <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
         <h4 className="text-lg font-semibold text-gray-900 mb-4">
           Section {selectedSection} (
-          {selectedSection === "A" ? "66 seats" : "39 seats"})
+          {selectedSection === "A" ? "66 seats" : "99 seats"})
         </h4>
         <div className="grid grid-cols-11 gap-2">
           {generateSeatGrid(selectedSection).map((seat) => (
