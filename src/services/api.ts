@@ -241,4 +241,8 @@ export const adminApi = {
     }),
   cleanupInvalidSeats: () =>
     apiRequest<{message: string; invalidSeats?: any[]}>("/seats/cleanup"),
+  initializeDefaultSeats: () =>
+    apiRequest<{message: string; sectionBSeats: number}>("/seats/initialize", {
+      method: "POST",
+    }),
 };

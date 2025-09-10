@@ -66,8 +66,25 @@ const SeatsView: React.FC = () => {
         console.log("Seats: Received data:", {seatResponse, studentsResponse});
 
         if (seatResponse?.seats) {
-          // seatResponse already shaped with totals by service
-          setSeatData(seatResponse);
+          // Check if Section B has no seats and initialize if needed
+          const sectionBSeats = seatResponse.seats.filter((seat) =>
+            seat.seatNumber.startsWith("B")
+          );
+
+          if (sectionBSeats.length === 0) {
+            try {
+              console.log("Initializing Section B with default 39 seats...");
+              await adminApi.initializeDefaultSeats();
+              // Refetch data after initialization
+              const updatedSeatResponse = await adminApi.getSeatManagement();
+              setSeatData(updatedSeatResponse);
+            } catch (initError) {
+              console.error("Error initializing default seats:", initError);
+              setSeatData(seatResponse);
+            }
+          } else {
+            setSeatData(seatResponse);
+          }
         } else {
           setSeatData({
             totalSeats: 0,
@@ -186,10 +203,24 @@ const SeatsView: React.FC = () => {
 
   const refreshSeats = async () => {
     try {
+      console.log("Refreshing seat data...");
       const latest = await adminApi.getSeatManagement();
-      setSeatData(latest);
+      console.log("Refreshed seat data:", latest);
+
+      if (latest?.seats) {
+        setSeatData(latest);
+      } else {
+        console.warn("Invalid seat data received during refresh");
+        setSeatData({
+          totalSeats: 0,
+          occupiedSeats: 0,
+          availableSeats: 0,
+          seats: [],
+        });
+      }
     } catch (e) {
       console.error("Seats: refresh failed", e);
+      showNotification("error", "Failed to refresh seat data");
     }
   };
 
@@ -299,19 +330,36 @@ const SeatsView: React.FC = () => {
     const sectionSeats = seatData.seats.filter((seat) =>
       seat.seatNumber.startsWith(section)
     );
-    if (sectionSeats.length === 0) return 0;
+
+    if (sectionSeats.length === 0) {
+      // For Section B, default to 39 seats if none exist
+      return section === "B" ? 39 : 0;
+    }
 
     const sectionNumbers = sectionSeats
       .map((seat) => parseInt(seat.seatNumber.substring(1)))
       .filter((num) => !isNaN(num));
 
-    return sectionNumbers.length > 0 ? Math.max(...sectionNumbers) : 0;
+    const maxSeat = sectionNumbers.length > 0 ? Math.max(...sectionNumbers) : 0;
+
+    // For Section B, ensure minimum of 39 seats
+    return section === "B" ? Math.max(maxSeat, 39) : maxSeat;
   };
 
   // Get dynamic seat range for display
   const getSectionRange = (section: "A" | "B") => {
     const maxSeat = getSectionSeatCount(section);
-    return maxSeat > 0 ? `1-${maxSeat}` : "No seats";
+    if (maxSeat === 0) return "No seats";
+
+    // For Section B, show default range even if no seats exist in DB
+    if (section === "B" && maxSeat === 39) {
+      const actualSeats = seatData.seats.filter((seat) =>
+        seat.seatNumber.startsWith("B")
+      ).length;
+      if (actualSeats === 0) return "1-39 (default)";
+    }
+
+    return `1-${maxSeat}`;
   };
 
   // Generate seat grid for visual display - dynamic based on existing seats
@@ -323,16 +371,21 @@ const SeatsView: React.FC = () => {
       .filter((num) => !isNaN(num))
       .sort((a, b) => a - b);
 
-    // Find the maximum seat number for this section, or default to 0
-    const maxExistingSeat =
+    // Find the maximum seat number for this section
+    let maxExistingSeat =
       sectionNumbers.length > 0 ? Math.max(...sectionNumbers) : 0;
 
-    // If no seats exist, return empty array
-    if (maxExistingSeat === 0) {
+    // For Section B, ensure we show at least 39 seats
+    if (section === "B") {
+      maxExistingSeat = Math.max(maxExistingSeat, 39);
+    }
+
+    // If no seats exist for Section A, return empty array
+    if (section === "A" && maxExistingSeat === 0) {
       return [];
     }
 
-    // Generate seats up to the maximum existing seat number
+    // Generate seats up to the maximum seat number
     const seats = [];
     for (let i = 1; i <= maxExistingSeat; i++) {
       const seatNumber = `${section}${i}`;
@@ -341,7 +394,7 @@ const SeatsView: React.FC = () => {
       seats.push({
         number: seatNumber,
         status: seatData?.status || "Available",
-        student: seatData?.studentName,
+        studentName: seatData?.studentName,
       });
     }
     return seats;
@@ -538,7 +591,8 @@ const SeatsView: React.FC = () => {
           Section {selectedSection} ({getSectionSeatCount(selectedSection)}{" "}
           seats)
         </h4>
-        {generateSeatGrid(selectedSection).length === 0 ? (
+        {generateSeatGrid(selectedSection).length === 0 &&
+        selectedSection === "A" ? (
           <div className="text-center py-12">
             <div className="text-gray-400 text-6xl mb-4">🪑</div>
             <h3 className="text-lg font-medium text-gray-900 mb-2">
@@ -572,17 +626,17 @@ const SeatsView: React.FC = () => {
                       seat.status
                     )} cursor-pointer hover:opacity-80`}
                     title={
-                      seat.student
-                        ? `${seat.number} - ${seat.student} (Click for details)`
+                      seat.studentName
+                        ? `${seat.number} - ${seat.studentName} (Click for details)`
                         : `${seat.number} (Click for details)`
                     }
                   >
                     {seat.number.replace(selectedSection, "")}
                   </button>
                 </div>
-                {seat.student && (
+                {seat.studentName && (
                   <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10">
-                    {seat.student}
+                    {seat.studentName}
                   </div>
                 )}
               </div>
@@ -1036,8 +1090,13 @@ const SeatsView: React.FC = () => {
                         return;
                       }
 
+                      console.log(`Adding seat: ${seatNumber}`);
                       await adminApi.addSeat({seatNumber});
+                      console.log(
+                        `Seat ${seatNumber} added, refreshing data...`
+                      );
                       await refreshSeats();
+                      console.log(`Data refreshed for seat ${seatNumber}`);
                       showNotification(
                         "success",
                         `Seat ${seatNumber} added successfully!`
@@ -1080,11 +1139,15 @@ const SeatsView: React.FC = () => {
                         return;
                       }
 
+                      console.log(`Adding seats: B${start} to B${end}`);
                       for (let num = start; num <= end; num++) {
                         const seatNumber = `${addSeatForm.section}${num}`;
+                        console.log(`Adding seat: ${seatNumber}`);
                         await adminApi.addSeat({seatNumber});
                       }
+                      console.log(`All seats added, refreshing data...`);
                       await refreshSeats();
+                      console.log(`Data refreshed for seat range`);
                       showNotification(
                         "success",
                         `${end - start + 1} seats added successfully!`
