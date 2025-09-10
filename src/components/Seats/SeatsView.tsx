@@ -1362,6 +1362,22 @@ const SeatsView: React.FC = () => {
                               </div>
                               <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">
+                                  Aadhar Number
+                                </label>
+                                <p className="text-sm text-gray-900">
+                                  {student.adharNumber || "-"}
+                                </p>
+                              </div>
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                  ID Number
+                                </label>
+                                <p className="text-sm text-gray-900">
+                                  {student.idNumber || "-"}
+                                </p>
+                              </div>
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
                                   Plan
                                 </label>
                                 <p className="text-sm text-gray-900">
