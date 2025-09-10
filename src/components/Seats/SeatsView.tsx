@@ -294,16 +294,49 @@ const SeatsView: React.FC = () => {
     );
   };
 
-  // Generate seat grid for visual display
-  const generateSeatGrid = (section: "A" | "B") => {
-    const maxSeats = section === "A" ? 66 : 39;
-    const seats = [];
+  // Get dynamic seat count for a section
+  const getSectionSeatCount = (section: "A" | "B") => {
+    const sectionSeats = seatData.seats.filter((seat) =>
+      seat.seatNumber.startsWith(section)
+    );
+    if (sectionSeats.length === 0) return 0;
 
-    for (let i = 1; i <= maxSeats; i++) {
+    const sectionNumbers = sectionSeats
+      .map((seat) => parseInt(seat.seatNumber.substring(1)))
+      .filter((num) => !isNaN(num));
+
+    return sectionNumbers.length > 0 ? Math.max(...sectionNumbers) : 0;
+  };
+
+  // Get dynamic seat range for display
+  const getSectionRange = (section: "A" | "B") => {
+    const maxSeat = getSectionSeatCount(section);
+    return maxSeat > 0 ? `1-${maxSeat}` : "No seats";
+  };
+
+  // Generate seat grid for visual display - dynamic based on existing seats
+  const generateSeatGrid = (section: "A" | "B") => {
+    const sectionSeats = getCurrentSectionSeats();
+    const sectionNumbers = sectionSeats
+      .filter((seat) => seat.seatNumber.startsWith(section))
+      .map((seat) => parseInt(seat.seatNumber.substring(1)))
+      .filter((num) => !isNaN(num))
+      .sort((a, b) => a - b);
+
+    // Find the maximum seat number for this section, or default to 0
+    const maxExistingSeat =
+      sectionNumbers.length > 0 ? Math.max(...sectionNumbers) : 0;
+
+    // If no seats exist, return empty array
+    if (maxExistingSeat === 0) {
+      return [];
+    }
+
+    // Generate seats up to the maximum existing seat number
+    const seats = [];
+    for (let i = 1; i <= maxExistingSeat; i++) {
       const seatNumber = `${section}${i}`;
-      const seatData = getCurrentSectionSeats().find(
-        (s) => s.seatNumber === seatNumber
-      );
+      const seatData = sectionSeats.find((s) => s.seatNumber === seatNumber);
 
       seats.push({
         number: seatNumber,
@@ -418,7 +451,7 @@ const SeatsView: React.FC = () => {
                     : "text-gray-600 hover:text-gray-900"
                 }`}
               >
-                Section A (1-66)
+                Section A ({getSectionRange("A")})
               </button>
               <button
                 onClick={() => setSelectedSection("B")}
@@ -428,7 +461,7 @@ const SeatsView: React.FC = () => {
                     : "text-gray-600 hover:text-gray-900"
                 }`}
               >
-                Section B (1-39)
+                Section B ({getSectionRange("B")})
               </button>
             </div>
           </div>
@@ -502,41 +535,60 @@ const SeatsView: React.FC = () => {
       {/* Seat Grid */}
       <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
         <h4 className="text-lg font-semibold text-gray-900 mb-4">
-          Section {selectedSection} (
-          {selectedSection === "A" ? "66 seats" : "39 seats"})
+          Section {selectedSection} ({getSectionSeatCount(selectedSection)}{" "}
+          seats)
         </h4>
-        <div className="grid grid-cols-11 gap-2">
-          {generateSeatGrid(selectedSection).map((seat) => (
-            <div key={seat.number} className="relative group">
-              <div className="flex items-center space-x-1">
-                <input
-                  type="checkbox"
-                  checked={selectedSeats.includes(seat.number)}
-                  onChange={() => handleSeatSelection(seat.number)}
-                  className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
-                />
-                <button
-                  onClick={() => handleSeatClick(seat.number)}
-                  className={`w-12 h-12 rounded-lg font-medium text-sm transition-all hover:scale-105 ${getSeatColor(
-                    seat.status
-                  )} cursor-pointer hover:opacity-80`}
-                  title={
-                    seat.student
-                      ? `${seat.number} - ${seat.student} (Click for details)`
-                      : `${seat.number} (Click for details)`
-                  }
-                >
-                  {seat.number.replace(selectedSection, "")}
-                </button>
-              </div>
-              {seat.student && (
-                <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10">
-                  {seat.student}
+        {generateSeatGrid(selectedSection).length === 0 ? (
+          <div className="text-center py-12">
+            <div className="text-gray-400 text-6xl mb-4">🪑</div>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">
+              No seats in Section {selectedSection}
+            </h3>
+            <p className="text-gray-500 mb-4">
+              Start by adding some seats to this section.
+            </p>
+            <button
+              onClick={() => setAddSeatModalOpen(true)}
+              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2 mx-auto"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Add First Seat</span>
+            </button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-11 gap-2">
+            {generateSeatGrid(selectedSection).map((seat) => (
+              <div key={seat.number} className="relative group">
+                <div className="flex items-center space-x-1">
+                  <input
+                    type="checkbox"
+                    checked={selectedSeats.includes(seat.number)}
+                    onChange={() => handleSeatSelection(seat.number)}
+                    className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+                  />
+                  <button
+                    onClick={() => handleSeatClick(seat.number)}
+                    className={`w-12 h-12 rounded-lg font-medium text-sm transition-all hover:scale-105 ${getSeatColor(
+                      seat.status
+                    )} cursor-pointer hover:opacity-80`}
+                    title={
+                      seat.student
+                        ? `${seat.number} - ${seat.student} (Click for details)`
+                        : `${seat.number} (Click for details)`
+                    }
+                  >
+                    {seat.number.replace(selectedSection, "")}
+                  </button>
                 </div>
-              )}
-            </div>
-          ))}
-        </div>
+                {seat.student && (
+                  <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10">
+                    {seat.student}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Seat Allocations Table */}
@@ -871,10 +923,9 @@ const SeatsView: React.FC = () => {
                         }))
                       }
                       placeholder={`e.g., ${
-                        addSeatForm.section === "A" ? "67" : "40"
+                        getSectionSeatCount(addSeatForm.section) + 1
                       }`}
                       min="1"
-                      max={addSeatForm.section === "A" ? "66" : "39"}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                       required
                     />
@@ -884,8 +935,8 @@ const SeatsView: React.FC = () => {
                         {addSeatForm.singleSeatNumber || "X"}
                       </p>
                       <p className="text-xs text-blue-600 mt-1">
-                        Section {addSeatForm.section} allows seats 1-
-                        {addSeatForm.section === "A" ? "66" : "39"}
+                        Current seats in Section {addSeatForm.section}:{" "}
+                        {getSectionSeatCount(addSeatForm.section)}
                       </p>
                     </div>
                   </div>
@@ -905,10 +956,9 @@ const SeatsView: React.FC = () => {
                           }))
                         }
                         placeholder={`e.g., ${
-                          addSeatForm.section === "A" ? "67" : "40"
+                          getSectionSeatCount(addSeatForm.section) + 1
                         }`}
                         min="1"
-                        max={addSeatForm.section === "A" ? "66" : "39"}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                         required
                       />
@@ -927,10 +977,9 @@ const SeatsView: React.FC = () => {
                           }))
                         }
                         placeholder={`e.g., ${
-                          addSeatForm.section === "A" ? "66" : "39"
+                          getSectionSeatCount(addSeatForm.section) + 5
                         }`}
                         min="1"
-                        max={addSeatForm.section === "A" ? "66" : "39"}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                         required
                       />
@@ -943,8 +992,8 @@ const SeatsView: React.FC = () => {
                         {addSeatForm.endNumber || "Y"}
                       </p>
                       <p className="text-xs text-blue-600 mt-1">
-                        Section {addSeatForm.section} allows seats 1-
-                        {addSeatForm.section === "A" ? "66" : "39"}
+                        Current seats in Section {addSeatForm.section}:{" "}
+                        {getSectionSeatCount(addSeatForm.section)}
                       </p>
                     </div>
                   </div>
@@ -961,9 +1010,6 @@ const SeatsView: React.FC = () => {
               <button
                 onClick={async () => {
                   try {
-                    // Validate seat number ranges for each section
-                    const maxSeats = addSeatForm.section === "A" ? 66 : 39;
-
                     if (addSeatForm.addMode === "single") {
                       const seatNum = parseInt(
                         addSeatForm.singleSeatNumber,
@@ -976,14 +1022,20 @@ const SeatsView: React.FC = () => {
                         );
                         return;
                       }
-                      if (seatNum > maxSeats) {
+
+                      // Check if seat already exists
+                      const seatNumber = `${addSeatForm.section}${seatNum}`;
+                      const existingSeat = seatData.seats.find(
+                        (s) => s.seatNumber === seatNumber
+                      );
+                      if (existingSeat) {
                         showNotification(
                           "error",
-                          `Seat number cannot exceed ${maxSeats} for Section ${addSeatForm.section}`
+                          `Seat ${seatNumber} already exists`
                         );
                         return;
                       }
-                      const seatNumber = `${addSeatForm.section}${seatNum}`;
+
                       await adminApi.addSeat({seatNumber});
                       await refreshSeats();
                       showNotification(
@@ -1005,13 +1057,29 @@ const SeatsView: React.FC = () => {
                         );
                         return;
                       }
-                      if (end > maxSeats) {
+
+                      // Check for existing seats in the range
+                      const existingSeats = [];
+                      for (let num = start; num <= end; num++) {
+                        const seatNumber = `${addSeatForm.section}${num}`;
+                        const existingSeat = seatData.seats.find(
+                          (s) => s.seatNumber === seatNumber
+                        );
+                        if (existingSeat) {
+                          existingSeats.push(seatNumber);
+                        }
+                      }
+
+                      if (existingSeats.length > 0) {
                         showNotification(
                           "error",
-                          `End seat number cannot exceed ${maxSeats} for Section ${addSeatForm.section}`
+                          `These seats already exist: ${existingSeats.join(
+                            ", "
+                          )}`
                         );
                         return;
                       }
+
                       for (let num = start; num <= end; num++) {
                         const seatNumber = `${addSeatForm.section}${num}`;
                         await adminApi.addSeat({seatNumber});
