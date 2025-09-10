@@ -16,7 +16,8 @@ const StudentsView: React.FC = () => {
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [editFormData, setEditFormData] = useState({
     name: "",
-    age: "",
+    dateOfBirth: "",
+    fatherName: "",
     subscriptionPlan: "",
     joiningDate: "",
     address: "",
@@ -117,7 +118,8 @@ const StudentsView: React.FC = () => {
 
     setEditFormData({
       name: student.name,
-      age: student.age?.toString() || "",
+      dateOfBirth: student.dateOfBirth ? student.dateOfBirth.split("T")[0] : "",
+      fatherName: student.fatherName || "",
       subscriptionPlan:
         typeof student.subscriptionPlan === "string"
           ? student.subscriptionPlan
@@ -173,7 +175,8 @@ const StudentsView: React.FC = () => {
       const fullSeatNumber = `${editFormData.seatSection}${editFormData.seatNumber}`;
       const submitData = {
         name: editFormData.name,
-        age: parseInt(editFormData.age),
+        dateOfBirth: editFormData.dateOfBirth || undefined,
+        fatherName: editFormData.fatherName || undefined,
         address: editFormData.address,
         adharNumber: parseInt(editFormData.adharNumber),
         seatNumber: fullSeatNumber,
@@ -313,7 +316,7 @@ const StudentsView: React.FC = () => {
                   Student
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Age
+                  DOB
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Seat
@@ -359,7 +362,7 @@ const StudentsView: React.FC = () => {
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {student.age}
+                    {student.dateOfBirth ? new Date(student.dateOfBirth).toLocaleDateString() : "-"}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {student.seatNumber}
@@ -471,10 +474,18 @@ const StudentsView: React.FC = () => {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Age
+                    Date of Birth
                   </label>
                   <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded">
-                    {selectedStudent.age}
+                    {selectedStudent.dateOfBirth ? new Date(selectedStudent.dateOfBirth).toLocaleDateString() : "-"}
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Father's Name
+                  </label>
+                  <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded">
+                    {selectedStudent.fatherName || "-"}
                   </p>
                 </div>
                 <div>
@@ -533,7 +544,14 @@ const StudentsView: React.FC = () => {
                     {new Date(selectedStudent.joiningDate).toLocaleDateString()}
                   </p>
                 </div>
-                {/* Expiry Date removed: not present in schema */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Expiry Date
+                  </label>
+                  <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded">
+                    {selectedStudent.expiryDate ? new Date(selectedStudent.expiryDate).toLocaleDateString() : "-"}
+                  </p>
+                </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Fee Status
@@ -633,14 +651,25 @@ const StudentsView: React.FC = () => {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Age
+                      Date of Birth
                     </label>
                     <input
-                      type="number"
-                      name="age"
-                      value={editFormData.age}
+                      type="date"
+                      name="dateOfBirth"
+                      value={editFormData.dateOfBirth}
                       onChange={handleEditInputChange}
-                      required
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Father's Name
+                    </label>
+                    <input
+                      type="text"
+                      name="fatherName"
+                      value={editFormData.fatherName}
+                      onChange={handleEditInputChange}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   </div>

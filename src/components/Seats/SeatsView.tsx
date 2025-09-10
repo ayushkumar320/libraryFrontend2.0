@@ -18,7 +18,9 @@ const SeatsView: React.FC = () => {
   // Modal states
   const [allocateModalOpen, setAllocateModalOpen] = useState(false);
   const [addSeatModalOpen, setAddSeatModalOpen] = useState(false);
+  const [seatDetailsModalOpen, setSeatDetailsModalOpen] = useState(false);
   const [selectedSeat, setSelectedSeat] = useState<string>("");
+  const [selectedSeatDetails, setSelectedSeatDetails] = useState<any>(null);
   const [students, setStudents] = useState<Student[]>([]);
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
   const [allocateLoading, setAllocateLoading] = useState(false);
@@ -103,6 +105,31 @@ const SeatsView: React.FC = () => {
     setSelectedSeat(seatNumber);
     setAllocationForm({studentId: "", subscriptionPlan: ""}); // Reset form
     setAllocateModalOpen(true);
+  };
+
+  const handleSeatClick = async (seatNumber: string) => {
+    try {
+      const seatInfo = await adminApi.getSeatInfo(seatNumber);
+      setSelectedSeatDetails(seatInfo);
+      setSeatDetailsModalOpen(true);
+    } catch (error) {
+      console.error("Error fetching seat details:", error);
+      showNotification("error", "Failed to fetch seat details");
+    }
+  };
+
+  const handleDeleteSeat = async (seatNumber: string) => {
+    if (!window.confirm(`Are you sure you want to delete seat ${seatNumber}?`)) {
+      return;
+    }
+    try {
+      await adminApi.deleteSeat(seatNumber);
+      await refreshSeats();
+      showNotification("success", `Seat ${seatNumber} deleted successfully!`);
+    } catch (error) {
+      console.error("Error deleting seat:", error);
+      showNotification("error", "Failed to delete seat");
+    }
   };
 
   const refreshSeats = async () => {
@@ -410,22 +437,14 @@ const SeatsView: React.FC = () => {
           {generateSeatGrid(selectedSection).map((seat) => (
             <div key={seat.number} className="relative group">
               <button
-                onClick={() => {
-                  if (seat.status === "Available") {
-                    handleAllocateSeat(seat.number);
-                  }
-                }}
+                onClick={() => handleSeatClick(seat.number)}
                 className={`w-12 h-12 rounded-lg font-medium text-sm transition-all hover:scale-105 ${getSeatColor(
                   seat.status
-                )} ${
-                  seat.status === "Available"
-                    ? "cursor-pointer hover:opacity-80"
-                    : "cursor-default"
-                }`}
+                )} cursor-pointer hover:opacity-80`}
                 title={
                   seat.student
-                    ? `${seat.number} - ${seat.student}`
-                    : seat.number
+                    ? `${seat.number} - ${seat.student} (Click for details)`
+                    : `${seat.number} (Click for details)`
                 }
               >
                 {seat.number.replace(selectedSection, "")}
@@ -520,6 +539,13 @@ const SeatsView: React.FC = () => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <div className="flex items-center space-x-2">
+                      <button
+                        onClick={() => handleSeatClick(seat.seatNumber)}
+                        className="text-blue-600 hover:text-blue-900 transition-colors"
+                        title="View seat details"
+                      >
+                        <User className="w-4 h-4" />
+                      </button>
                       {seat.status === "Available" ? (
                         <button
                           onClick={() => handleAllocateSeat(seat.seatNumber)}
@@ -530,12 +556,19 @@ const SeatsView: React.FC = () => {
                       ) : (
                         <button
                           onClick={() => handleDeallocateSeat(seat.seatNumber)}
-                          className="text-red-600 hover:text-red-900 transition-colors"
+                          className="text-orange-600 hover:text-orange-900 transition-colors"
                           title="Deallocate seat"
                         >
                           <User className="w-4 h-4" />
                         </button>
                       )}
+                      <button
+                        onClick={() => handleDeleteSeat(seat.seatNumber)}
+                        className="text-red-600 hover:text-red-900 transition-colors"
+                        title="Delete seat"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -789,6 +822,154 @@ const SeatsView: React.FC = () => {
               >
                 Add Seats
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Seat Details Modal */}
+      {seatDetailsModalOpen && selectedSeatDetails && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 animate-fadeIn">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto transform transition-all duration-300 animate-slideIn">
+            <div className="p-6 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-semibold text-gray-900">
+                  Seat {selectedSeatDetails.seatNumber} Details
+                </h2>
+                <button
+                  onClick={() => setSeatDetailsModalOpen(false)}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+            </div>
+            <div className="p-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Seat Number
+                  </label>
+                  <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded">
+                    {selectedSeatDetails.seatNumber}
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Section
+                  </label>
+                  <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded">
+                    {selectedSeatDetails.section}
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Status
+                  </label>
+                  <span
+                    className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                      selectedSeatDetails.status === "Occupied"
+                        ? "bg-red-100 text-red-800"
+                        : "bg-green-100 text-green-800"
+                    }`}
+                  >
+                    {selectedSeatDetails.status}
+                  </span>
+                </div>
+              </div>
+              
+              {selectedSeatDetails.students && selectedSeatDetails.students.length > 0 && (
+                <div className="mt-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                    Assigned Students
+                  </h3>
+                  <div className="space-y-4">
+                    {selectedSeatDetails.students.map((student: any, index: number) => (
+                      <div key={index} className="bg-gray-50 p-4 rounded-lg">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Student Name
+                            </label>
+                            <p className="text-sm text-gray-900">{student.name}</p>
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Father's Name
+                            </label>
+                            <p className="text-sm text-gray-900">{student.fatherName || "-"}</p>
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Date of Birth
+                            </label>
+                            <p className="text-sm text-gray-900">
+                              {student.dateOfBirth ? new Date(student.dateOfBirth).toLocaleDateString() : "-"}
+                            </p>
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Slot
+                            </label>
+                            <p className="text-sm text-gray-900">{student.slot || "-"}</p>
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Plan
+                            </label>
+                            <p className="text-sm text-gray-900">{student.plan || "-"}</p>
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Fee Status
+                            </label>
+                            <span
+                              className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                                student.feePaid
+                                  ? "bg-green-100 text-green-800"
+                                  : "bg-yellow-100 text-yellow-800"
+                              }`}
+                            >
+                              {student.feePaid ? "Paid" : "Pending"}
+                            </span>
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Joining Date
+                            </label>
+                            <p className="text-sm text-gray-900">
+                              {student.joiningDate ? new Date(student.joiningDate).toLocaleDateString() : "-"}
+                            </p>
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Expiry Date
+                            </label>
+                            <p className="text-sm text-gray-900">
+                              {student.expiryDate ? new Date(student.expiryDate).toLocaleDateString() : "-"}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
+              {(!selectedSeatDetails.students || selectedSeatDetails.students.length === 0) && (
+                <div className="mt-6 text-center py-8">
+                  <p className="text-gray-500">No students assigned to this seat</p>
+                  <button
+                    onClick={() => {
+                      setSeatDetailsModalOpen(false);
+                      handleAllocateSeat(selectedSeatDetails.seatNumber);
+                    }}
+                    className="mt-4 bg-slate-800 text-white px-4 py-2 rounded-lg hover:bg-slate-700 transition-colors"
+                  >
+                    Assign Student
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>

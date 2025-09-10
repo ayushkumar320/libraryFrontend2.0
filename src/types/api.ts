@@ -3,7 +3,8 @@ export interface Student {
   name: string; // Changed from fullName to match backend schema
   slot?: "Morning" | "Evening" | "Full day" | "24 Hour";
   idNumber: number; // Changed from email to match backend schema
-  age?: number; // Made optional to match backend schema
+  dateOfBirth?: string; // Replaced age with date of birth
+  fatherName?: string; // Added father's name field
   adharNumber: number; // Changed from string to number to match backend schema
   address?: string; // Made optional to match backend schema
   examPreparingFor?: string;
@@ -11,6 +12,7 @@ export interface Student {
   seatNumber: string;
   subscriptionPlan: string | SubscriptionPlan; // Can be ObjectId string or populated object
   joiningDate: string;
+  expiryDate?: string; // Added expiry date field
   feePaid: boolean; // Changed from feeStatus to match backend schema
   isActive: boolean;
   lockerService?: boolean;
@@ -53,6 +55,16 @@ export interface Seat {
   allocatedDate?: string; // joining date
   expiryDate?: string; // expirationDate
   status: "Available" | "Occupied";
+  students?: Array<{
+    name: string;
+    plan: string;
+    joiningDate: string;
+    expiryDate: string;
+    feePaid: boolean;
+    slot: string;
+    fatherName?: string;
+    dateOfBirth?: string;
+  }>; // Array of students assigned to this seat
 }
 
 export interface SeatManagementData {

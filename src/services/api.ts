@@ -232,6 +232,13 @@ export const adminApi = {
       method: "PUT",
       body: JSON.stringify(data),
     }),
+  deleteSeat: (seatNumber: string) =>
+    apiRequest<{
+      message: string;
+      seatNumber: string;
+    }>(`/seat/${seatNumber}`, {
+      method: "DELETE",
+    }),
   cleanupInvalidSeats: () =>
     apiRequest<{message: string; invalidSeats?: any[]}>("/seats/cleanup"),
 };

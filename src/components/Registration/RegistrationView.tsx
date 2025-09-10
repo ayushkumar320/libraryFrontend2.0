@@ -7,7 +7,8 @@ const RegistrationView: React.FC = () => {
   const [formData, setFormData] = useState({
     name: "",
     idNumber: "",
-    age: "",
+    dateOfBirth: "",
+    fatherName: "",
     slot: "",
     subscriptionPlan: "",
     joiningDate: "",
@@ -170,7 +171,8 @@ const RegistrationView: React.FC = () => {
           formData.joiningDate || new Date().toISOString().split("T")[0], // YYYY-MM-DD format
         feePaid: formData.feePaid,
         seatNumber: fullSeatNumber,
-        age: formData.age ? parseInt(formData.age) : undefined,
+        dateOfBirth: formData.dateOfBirth || undefined,
+        fatherName: formData.fatherName || undefined,
         address: formData.address?.trim(),
         examPreparingFor: formData.examPreparingFor?.trim() || undefined,
         schoolOrCollegeName: formData.schoolOrCollegeName?.trim() || undefined,
@@ -199,7 +201,8 @@ const RegistrationView: React.FC = () => {
       setFormData({
         name: "",
         idNumber: "",
-        age: "",
+        dateOfBirth: "",
+        fatherName: "",
         slot: "",
         subscriptionPlan: "",
         joiningDate: "",
@@ -291,14 +294,25 @@ const RegistrationView: React.FC = () => {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Age
+                  Date of Birth
                 </label>
                 <input
-                  type="number"
-                  name="age"
-                  value={formData.age}
+                  type="date"
+                  name="dateOfBirth"
+                  value={formData.dateOfBirth}
                   onChange={handleInputChange}
-                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Father's Name
+                </label>
+                <input
+                  type="text"
+                  name="fatherName"
+                  value={formData.fatherName}
+                  onChange={handleInputChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
