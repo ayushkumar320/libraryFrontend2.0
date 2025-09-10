@@ -131,8 +131,26 @@ const RegistrationView: React.FC = () => {
       const fullSeatNumber = `${formData.seatSection}${formData.seatNumber}`;
 
       // Validate required fields
-      if (!formData.name || !formData.idNumber || !formData.adharNumber || !formData.subscriptionPlan) {
-        showNotification("error", "Please fill in all required fields including subscription plan");
+      if (
+        !formData.name ||
+        !formData.idNumber ||
+        !formData.adharNumber ||
+        !formData.subscriptionPlan
+      ) {
+        showNotification(
+          "error",
+          "Please fill in all required fields including subscription plan"
+        );
+        setLoading(false);
+        return;
+      }
+
+      // Validate Aadhar number (should be 12 digits)
+      if (
+        formData.adharNumber.length !== 12 ||
+        !/^\d{12}$/.test(formData.adharNumber)
+      ) {
+        showNotification("error", "Aadhar number must be exactly 12 digits");
         setLoading(false);
         return;
       }
@@ -146,7 +164,10 @@ const RegistrationView: React.FC = () => {
       });
 
       // Validate subscription plan selection
-      if (!formData.subscriptionPlan || formData.subscriptionPlan.trim() === "") {
+      if (
+        !formData.subscriptionPlan ||
+        formData.subscriptionPlan.trim() === ""
+      ) {
         showNotification("error", "Please select a subscription plan");
         setLoading(false);
         return;
@@ -218,35 +239,59 @@ const RegistrationView: React.FC = () => {
       });
     } catch (error) {
       console.error("Registration error:", error);
+      console.error(
+        "Registration error details:",
+        JSON.stringify(error, null, 2)
+      );
+
       let errorMessage = "Error registering student. Please try again.";
-      
+
       if (error instanceof Error) {
-        console.log("Registration: Error details:", error.message);
-        
-        // Extract more specific error message
-        if (error.message.includes("HTTP_400")) {
-          if (error.message.includes("Subscription plan not found")) {
-            errorMessage = "Selected subscription plan is not available. Please refresh and select a valid plan.";
-          } else if (error.message.includes("Invalid subscriptionPlan ID format")) {
-            errorMessage = "Invalid subscription plan selected. Please select a valid plan.";
+        console.log("Registration: Error message:", error.message);
+
+        // Try to parse the actual backend response
+        try {
+          const errorData = JSON.parse(error.message);
+          if (errorData.message) {
+            errorMessage = errorData.message;
+          }
+        } catch (parseError) {
+          // If it's not JSON, use the message directly
+          if (
+            error.message.includes(
+              "User with this Aadhar number already exists"
+            )
+          ) {
+            errorMessage = "A student with this Aadhar number already exists.";
+          } else if (
+            error.message.includes("User with this ID number already exists")
+          ) {
+            errorMessage = "A student with this ID number already exists.";
+          } else if (error.message.includes("This seat is already occupied")) {
+            errorMessage =
+              "This seat is already occupied. Please choose a different seat.";
+          } else if (error.message.includes("Subscription plan not found")) {
+            errorMessage =
+              "Selected subscription plan is not available. Please refresh and select a valid plan.";
+          } else if (
+            error.message.includes("Invalid subscriptionPlan ID format")
+          ) {
+            errorMessage =
+              "Invalid subscription plan selected. Please select a valid plan.";
           } else if (error.message.includes("Missing required fields")) {
             errorMessage = "Please fill in all required fields.";
-          } else if (error.message.includes("already exists")) {
-            errorMessage = "Student with this Aadhar number, ID number, or seat already exists.";
+          } else if (
+            error.message.includes(
+              "adharNumber and idNumber must be valid numbers"
+            )
+          ) {
+            errorMessage = "Aadhar number and ID number must be valid numbers.";
           } else {
-            errorMessage = "Invalid data provided. Please check all fields.";
+            errorMessage = error.message;
           }
-        } else if (error.message.includes("HTTP_401")) {
-          errorMessage = "Authentication failed. Please login again.";
-        } else if (error.message.includes("HTTP_500")) {
-          errorMessage = "Server error. Please try again later.";
-        } else if (error.message.includes("NETWORK_ERROR")) {
-          errorMessage = "Cannot connect to server. Please check your internet connection.";
-        } else {
-          errorMessage = `Registration failed: ${error.message}`;
         }
       }
-      
+
       console.log("Registration: Showing error:", errorMessage);
       showNotification("error", errorMessage);
     } finally {
@@ -497,7 +542,10 @@ const RegistrationView: React.FC = () => {
                   onChange={handleInputChange}
                   className="mr-2"
                 />
-                <label htmlFor="lockerService" className="text-sm text-gray-700">
+                <label
+                  htmlFor="lockerService"
+                  className="text-sm text-gray-700"
+                >
                   Locker Service (+₹100/month)
                 </label>
               </div>
