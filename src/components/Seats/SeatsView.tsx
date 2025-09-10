@@ -356,7 +356,7 @@ const SeatsView: React.FC = () => {
       const actualSeats = seatData.seats.filter((seat) =>
         seat.seatNumber.startsWith("B")
       ).length;
-      if (actualSeats === 0) return "1-39 (default)";
+      if (actualSeats === 0) return "1-39";
     }
 
     return `1-${maxSeat}`;
