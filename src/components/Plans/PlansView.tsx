@@ -107,7 +107,12 @@ const PlansView = () => {
   };
 
   const handleUpdatePlan = async () => {
-    if (!editingPlan || !editPlanForm.planName || !editPlanForm.duration || !editPlanForm.price) {
+    if (
+      !editingPlan ||
+      !editPlanForm.planName ||
+      !editPlanForm.duration ||
+      !editPlanForm.price
+    ) {
       showNotification("error", "Please fill all fields");
       return;
     }
@@ -129,7 +134,10 @@ const PlansView = () => {
       setEditPlanModalOpen(false);
       setEditingPlan(null);
       setEditPlanForm({planName: "", duration: "", price: "", status: true});
-      showNotification("success", response.message || "Plan updated successfully!");
+      showNotification(
+        "success",
+        response.message || "Plan updated successfully!"
+      );
     } catch (error) {
       console.error("Error updating plan:", error);
       showNotification("error", "Error updating plan. Please try again.");
@@ -149,13 +157,19 @@ const PlansView = () => {
         // Refetch plans to get authoritative list
         const updated = await adminApi.getSubscriptionPlans();
         setPlans(updated || []);
-        showNotification("success", response.message || "Plan deleted successfully!");
+        showNotification(
+          "success",
+          response.message || "Plan deleted successfully!"
+        );
       } catch (error) {
         console.error("Error deleting plan:", error);
         let message = "Error deleting plan. Please try again.";
         if (error instanceof Error) {
-          if (error.message.includes("Cannot delete plan with active subscribers")) {
-            message = "Cannot delete plan with active subscribers. Reassign or remove subscribers first.";
+          if (
+            error.message.includes("Cannot delete plan with active subscribers")
+          ) {
+            message =
+              "Cannot delete plan with active subscribers. Reassign or remove subscribers first.";
           } else if (error.message.includes("HTTP_401")) {
             message = "Unauthorized. Please login again.";
           } else if (error.message.includes("Invalid plan ID")) {
@@ -272,8 +286,8 @@ const PlansView = () => {
           </div>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full">
+        <div className="overflow-x-auto -mx-4 sm:mx-0">
+          <table className="min-w-full text-xs sm:text-sm">
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -339,7 +353,7 @@ const PlansView = () => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <div className="flex items-center space-x-2">
-                      <button 
+                      <button
                         onClick={() => handleEditPlan(plan)}
                         className="text-green-600 hover:text-green-900"
                         title="Edit plan"
@@ -357,8 +371,16 @@ const PlansView = () => {
                           }
                           handleDeletePlan(plan._id, plan.planName);
                         }}
-                        className={`text-red-600 hover:text-red-900 ${(plan.subscribers?.length || 0) > 0 ? "opacity-40 cursor-not-allowed" : ""}`}
-                        title={(plan.subscribers?.length || 0) > 0 ? "Has active subscribers" : "Delete plan"}
+                        className={`text-red-600 hover:text-red-900 ${
+                          (plan.subscribers?.length || 0) > 0
+                            ? "opacity-40 cursor-not-allowed"
+                            : ""
+                        }`}
+                        title={
+                          (plan.subscribers?.length || 0) > 0
+                            ? "Has active subscribers"
+                            : "Delete plan"
+                        }
                         disabled={(plan.subscribers?.length || 0) > 0}
                       >
                         <Trash2 className="w-4 h-4" />
@@ -494,7 +516,12 @@ const PlansView = () => {
                   onClick={() => {
                     setEditPlanModalOpen(false);
                     setEditingPlan(null);
-                    setEditPlanForm({planName: "", duration: "", price: "", status: true});
+                    setEditPlanForm({
+                      planName: "",
+                      duration: "",
+                      price: "",
+                      status: true,
+                    });
                   }}
                   className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
                 >
@@ -582,7 +609,12 @@ const PlansView = () => {
                   onClick={() => {
                     setEditPlanModalOpen(false);
                     setEditingPlan(null);
-                    setEditPlanForm({planName: "", duration: "", price: "", status: true});
+                    setEditPlanForm({
+                      planName: "",
+                      duration: "",
+                      price: "",
+                      status: true,
+                    });
                   }}
                   className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
                 >

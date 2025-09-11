@@ -39,7 +39,10 @@ const StudentsView: React.FC = () => {
     plans.find((p) => p._id === planId);
   const getPlanNameForStudent = (student: Student) => {
     if (typeof student.subscriptionPlan === "string") {
-      return getPlanById(student.subscriptionPlan)?.planName || student.subscriptionPlan;
+      return (
+        getPlanById(student.subscriptionPlan)?.planName ||
+        student.subscriptionPlan
+      );
     }
     return student.subscriptionPlan.planName;
   };
@@ -184,7 +187,7 @@ const StudentsView: React.FC = () => {
         joiningDate: editFormData.joiningDate,
         feePaid: editFormData.feePaid,
         isActive: editFormData.isActive,
-        slot: editFormData.slot || undefined,
+        slot: (editFormData.slot || undefined) as Student["slot"],
         examPreparingFor: editFormData.examPreparingFor || undefined,
         schoolOrCollegeName: editFormData.schoolOrCollegeName || undefined,
         lockerService: editFormData.lockerService,
@@ -308,8 +311,8 @@ const StudentsView: React.FC = () => {
           </div>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full">
+        <div className="overflow-x-auto -mx-4 sm:mx-0">
+          <table className="min-w-full text-xs sm:text-sm">
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -362,7 +365,9 @@ const StudentsView: React.FC = () => {
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {student.dateOfBirth ? new Date(student.dateOfBirth).toLocaleDateString() : "-"}
+                    {student.dateOfBirth
+                      ? new Date(student.dateOfBirth).toLocaleDateString()
+                      : "-"}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {student.seatNumber}
@@ -373,7 +378,11 @@ const StudentsView: React.FC = () => {
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    ₹{(getPlanPriceForStudent(student) + ((student as any).lockerService ? 100 : 0)).toLocaleString("en-IN")}
+                    ₹
+                    {(
+                      getPlanPriceForStudent(student) +
+                      ((student as any).lockerService ? 100 : 0)
+                    ).toLocaleString("en-IN")}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {new Date(student.joiningDate).toLocaleDateString()}
@@ -477,7 +486,11 @@ const StudentsView: React.FC = () => {
                     Date of Birth
                   </label>
                   <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded">
-                    {selectedStudent.dateOfBirth ? new Date(selectedStudent.dateOfBirth).toLocaleDateString() : "-"}
+                    {selectedStudent.dateOfBirth
+                      ? new Date(
+                          selectedStudent.dateOfBirth
+                        ).toLocaleDateString()
+                      : "-"}
                   </p>
                 </div>
                 <div>
@@ -518,7 +531,9 @@ const StudentsView: React.FC = () => {
                   </label>
                   <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded">
                     {typeof selectedStudent.subscriptionPlan === "string"
-                      ? (plans.find(p => p._id === selectedStudent.subscriptionPlan)?.planName || selectedStudent.subscriptionPlan)
+                      ? plans.find(
+                          (p) => p._id === selectedStudent.subscriptionPlan
+                        )?.planName || selectedStudent.subscriptionPlan
                       : selectedStudent.subscriptionPlan.planName}
                   </p>
                 </div>
@@ -527,11 +542,17 @@ const StudentsView: React.FC = () => {
                     Total Fee
                   </label>
                   <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded">
-                    ₹{(() => {
-                      const base = typeof selectedStudent.subscriptionPlan === "string"
-                        ? (plans.find(p => p._id === selectedStudent.subscriptionPlan)?.price || 0)
-                        : selectedStudent.subscriptionPlan.price;
-                      const locker = (selectedStudent as any).lockerService ? 100 : 0;
+                    ₹
+                    {(() => {
+                      const base =
+                        typeof selectedStudent.subscriptionPlan === "string"
+                          ? plans.find(
+                              (p) => p._id === selectedStudent.subscriptionPlan
+                            )?.price || 0
+                          : selectedStudent.subscriptionPlan.price;
+                      const locker = (selectedStudent as any).lockerService
+                        ? 100
+                        : 0;
                       return (base + locker).toLocaleString("en-IN");
                     })()}
                   </p>
@@ -549,7 +570,11 @@ const StudentsView: React.FC = () => {
                     Expiry Date
                   </label>
                   <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded">
-                    {selectedStudent.expiryDate ? new Date(selectedStudent.expiryDate).toLocaleDateString() : "-"}
+                    {selectedStudent.expiryDate
+                      ? new Date(
+                          selectedStudent.expiryDate
+                        ).toLocaleDateString()
+                      : "-"}
                   </p>
                 </div>
                 <div>
@@ -593,7 +618,9 @@ const StudentsView: React.FC = () => {
                     Locker Service
                   </label>
                   <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded">
-                    {(selectedStudent as any).lockerService ? "Yes (+₹100)" : "No"}
+                    {(selectedStudent as any).lockerService
+                      ? "Yes (+₹100)"
+                      : "No"}
                   </p>
                 </div>
                 <div>

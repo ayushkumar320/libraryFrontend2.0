@@ -16,6 +16,7 @@ import LoginView from "./components/Auth/LoginView";
 
 function DashboardShell() {
   const [activeTab, setActiveTab] = useState("dashboard");
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   const renderContent = () => {
     switch (activeTab) {
@@ -38,9 +39,14 @@ function DashboardShell() {
 
   return (
     <div id="dashboard" className="flex h-screen bg-gray-50">
-      <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <Header />
+      <Sidebar
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        mobileOpen={mobileOpen}
+        onClose={() => setMobileOpen(false)}
+      />
+      <div className="flex-1 flex flex-col overflow-hidden md:ml-64">
+        <Header onToggleSidebar={() => setMobileOpen(true)} />
         <main className="flex-1 overflow-y-auto">{renderContent()}</main>
       </div>
     </div>
@@ -65,7 +71,10 @@ function PublicApp() {
 
   return (
     <div id="top">
-      <Navbar onLoginClick={() => setShowLogin(true)} />
+      <Navbar
+        onLoginClick={() => setShowLogin(true)}
+        onHomeClick={() => setShowLogin(false)}
+      />
       {showLogin ? <LoginView /> : <Home />}
     </div>
   );
