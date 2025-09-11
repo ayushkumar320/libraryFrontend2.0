@@ -8,7 +8,6 @@ import {
   BookOpen,
   Lock,
   Sun,
-  Snowflake,
   Building2,
   Trees,
 } from "lucide-react";
@@ -38,11 +37,6 @@ const features = [
     desc: "Extra open space provided by the management for breaks.",
   },
   {
-    icon: <Snowflake className="w-6 h-6" />,
-    title: "Winter Heaters",
-    desc: "Heaters provided in winters for cozy study time.",
-  },
-  {
     icon: <Wind className="w-6 h-6" />,
     title: "Cool Summers",
     desc: "AC and temperature managed for a very cool summer.",
@@ -56,6 +50,11 @@ const features = [
     icon: <BookOpen className="w-6 h-6" />,
     title: "Competitive Books",
     desc: "Resources for JEE, NEET, NDA, SSC and more.",
+  },
+  {
+    icon: <BookOpen className="w-6 h-6" />,
+    title: "Daily Newspapers (UPSC)",
+    desc: "The Indian Express, The Hindu, Employment News, Prabhat Khabar, Hindustan, Speedy, Magazines, Pratiyogita Darpan and many more available daily.",
   },
   {
     icon: <Star className="w-6 h-6" />,
