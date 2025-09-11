@@ -7,11 +7,14 @@ import PlansView from "./components/Plans/PlansView";
 import RegistrationView from "./components/Registration/RegistrationView";
 import SeatsView from "./components/Seats/SeatsView";
 import ExpiringStudentsView from "./components/Students/ExpiringStudentsView";
-import {AuthProvider} from "./contexts/AuthContext";
+import {AuthProvider, useAuth} from "./contexts/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 import ErrorBoundary from "./components/ErrorBoundary";
+import Home from "./components/Home/Home";
+import Navbar from "./components/Home/Navbar";
+import LoginView from "./components/Auth/LoginView";
 
-function App() {
+function DashboardShell() {
   const [activeTab, setActiveTab] = useState("dashboard");
 
   const renderContent = () => {
@@ -34,17 +37,45 @@ function App() {
   };
 
   return (
+    <div id="dashboard" className="flex h-screen bg-gray-50">
+      <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <Header />
+        <main className="flex-1 overflow-y-auto">{renderContent()}</main>
+      </div>
+    </div>
+  );
+}
+
+function PublicApp() {
+  const {isAuthenticated} = useAuth();
+  const [showLogin, setShowLogin] = useState(false);
+
+  if (typeof document !== "undefined") {
+    document.documentElement.style.scrollBehavior = "smooth";
+  }
+
+  if (isAuthenticated) {
+    return (
+      <ProtectedRoute>
+        <DashboardShell />
+      </ProtectedRoute>
+    );
+  }
+
+  return (
+    <div id="top">
+      <Navbar onLoginClick={() => setShowLogin(true)} />
+      {showLogin ? <LoginView /> : <Home />}
+    </div>
+  );
+}
+
+function App() {
+  return (
     <ErrorBoundary>
       <AuthProvider>
-        <ProtectedRoute>
-          <div className="flex h-screen bg-gray-50">
-            <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
-            <div className="flex-1 flex flex-col overflow-hidden">
-              <Header />
-              <main className="flex-1 overflow-y-auto">{renderContent()}</main>
-            </div>
-          </div>
-        </ProtectedRoute>
+        <PublicApp />
       </AuthProvider>
     </ErrorBoundary>
   );
