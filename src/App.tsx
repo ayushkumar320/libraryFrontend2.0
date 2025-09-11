@@ -45,7 +45,7 @@ function DashboardShell() {
         mobileOpen={mobileOpen}
         onClose={() => setMobileOpen(false)}
       />
-      <div className="flex-1 flex flex-col overflow-hidden md:ml-64">
+      <div className="flex-1 flex flex-col overflow-hidden">
         <Header onToggleSidebar={() => setMobileOpen(true)} />
         <main className="flex-1 overflow-y-auto">{renderContent()}</main>
       </div>

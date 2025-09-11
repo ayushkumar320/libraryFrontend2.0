@@ -1,4 +1,7 @@
 import React, {useState, useEffect} from "react";
+import DatePicker from "react-datepicker";
+import {format, parseISO} from "date-fns";
+import "react-datepicker/dist/react-datepicker.css";
 import {Users, Armchair, Clock, FileText} from "lucide-react";
 import StatsCard from "./StatsCard";
 import {adminApi} from "../../services/api";
@@ -32,6 +35,10 @@ const DashboardView: React.FC = () => {
     isActive: false,
     lockerService: false,
   });
+
+  // Date helpers to keep format consistent with backend (YYYY-MM-DD)
+  const toYMD = (d: Date | null) => (d ? format(d, "yyyy-MM-dd") : "");
+  const fromYMD = (s: string) => (s ? parseISO(s) : null);
 
   // Notification system
   const [notification, setNotification] = useState<{
@@ -98,7 +105,10 @@ const DashboardView: React.FC = () => {
       !registrationForm.seatSection ||
       !registrationForm.seatNumber
     ) {
-      showNotification("error", "Please fill all required fields including subscription plan and seat details");
+      showNotification(
+        "error",
+        "Please fill all required fields including subscription plan and seat details"
+      );
       return;
     }
 
@@ -154,15 +164,20 @@ const DashboardView: React.FC = () => {
     } catch (error) {
       console.error("Error registering student:", error);
       let errorMessage = "Error registering student. Please try again.";
-      
+
       if (error instanceof Error) {
         if (error.message.includes("HTTP_400")) {
           if (error.message.includes("Subscription plan not found")) {
-            errorMessage = "Selected subscription plan is not available. Please refresh and select a valid plan.";
-          } else if (error.message.includes("Invalid subscriptionPlan ID format")) {
-            errorMessage = "Invalid subscription plan selected. Please select a valid plan.";
+            errorMessage =
+              "Selected subscription plan is not available. Please refresh and select a valid plan.";
+          } else if (
+            error.message.includes("Invalid subscriptionPlan ID format")
+          ) {
+            errorMessage =
+              "Invalid subscription plan selected. Please select a valid plan.";
           } else if (error.message.includes("already exists")) {
-            errorMessage = "Student with this Aadhar number, ID number, or seat already exists.";
+            errorMessage =
+              "Student with this Aadhar number, ID number, or seat already exists.";
           } else {
             errorMessage = "Invalid data provided. Please check all fields.";
           }
@@ -174,7 +189,7 @@ const DashboardView: React.FC = () => {
           errorMessage = `Registration failed: ${error.message}`;
         }
       }
-      
+
       showNotification("error", errorMessage);
     }
   };
@@ -288,16 +303,23 @@ const DashboardView: React.FC = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Date of Birth
                 </label>
-                <input
-                  type="date"
-                  value={registrationForm.dateOfBirth}
-                  onChange={(e) =>
+                <DatePicker
+                  selected={fromYMD(registrationForm.dateOfBirth)}
+                  onChange={(date) =>
                     setRegistrationForm((prev) => ({
                       ...prev,
-                      dateOfBirth: e.target.value,
+                      dateOfBirth: toYMD(date as Date),
                     }))
                   }
+                  placeholderText="dd/mm/yyyy"
+                  dateFormat="dd/MM/yyyy"
+                  showYearDropdown
+                  showMonthDropdown
+                  scrollableYearDropdown
+                  yearDropdownItemNumber={80}
+                  maxDate={new Date()}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  popperPlacement="bottom-start"
                 />
               </div>
               <div>
@@ -520,7 +542,10 @@ const DashboardView: React.FC = () => {
                   }
                   className="mr-2"
                 />
-                <label htmlFor="lockerService" className="text-sm text-gray-700">
+                <label
+                  htmlFor="lockerService"
+                  className="text-sm text-gray-700"
+                >
                   Locker Service (+₹100/month)
                 </label>
               </div>

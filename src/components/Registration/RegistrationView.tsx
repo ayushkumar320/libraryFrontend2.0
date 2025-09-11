@@ -1,4 +1,7 @@
 import React, {useState, useEffect} from "react";
+import DatePicker from "react-datepicker";
+import {format, parseISO} from "date-fns";
+import "react-datepicker/dist/react-datepicker.css";
 import {X} from "lucide-react";
 import {adminApi} from "../../services/api";
 import {SubscriptionPlan} from "../../types/api";
@@ -121,6 +124,10 @@ const RegistrationView: React.FC = () => {
         type === "checkbox" ? (e.target as HTMLInputElement).checked : value,
     }));
   };
+
+  // Helpers for safely formatting dates as YYYY-MM-DD
+  const toYMD = (d: Date | null) => (d ? format(d, "yyyy-MM-dd") : "");
+  const fromYMD = (s: string) => (s ? parseISO(s) : null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -341,12 +348,23 @@ const RegistrationView: React.FC = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Date of Birth
                 </label>
-                <input
-                  type="date"
-                  name="dateOfBirth"
-                  value={formData.dateOfBirth}
-                  onChange={handleInputChange}
+                <DatePicker
+                  selected={fromYMD(formData.dateOfBirth)}
+                  onChange={(date) =>
+                    setFormData((p) => ({
+                      ...p,
+                      dateOfBirth: toYMD(date as Date),
+                    }))
+                  }
+                  placeholderText="dd/mm/yyyy"
+                  dateFormat="dd/MM/yyyy"
+                  showYearDropdown
+                  showMonthDropdown
+                  scrollableYearDropdown
+                  yearDropdownItemNumber={80}
+                  maxDate={new Date()}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  popperPlacement="bottom-start"
                 />
               </div>
               <div>
@@ -407,13 +425,22 @@ const RegistrationView: React.FC = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Joining Date
                 </label>
-                <input
-                  type="date"
-                  name="joiningDate"
-                  value={formData.joiningDate}
-                  onChange={handleInputChange}
-                  required
+                <DatePicker
+                  selected={fromYMD(
+                    formData.joiningDate ||
+                      new Date().toISOString().slice(0, 10)
+                  )}
+                  onChange={(date) =>
+                    setFormData((p) => ({
+                      ...p,
+                      joiningDate: toYMD(date as Date),
+                    }))
+                  }
+                  dateFormat="dd/MM/yyyy"
+                  maxDate={new Date()}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  popperPlacement="bottom-start"
+                  required
                 />
               </div>
             </div>
