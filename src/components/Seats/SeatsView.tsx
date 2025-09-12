@@ -271,14 +271,13 @@ const SeatsView: React.FC = () => {
         expiryDate.setFullYear(today.getFullYear() + years);
       }
 
-      // Update seat via API
-      // Backend expects partial seat update (using simplified contract). We send studentName & subscriptionPlan.
-      await adminApi.updateSeat(selectedSeat, {
-        status: "Occupied",
+      // Update seat via API - use the new addStudentToSeat endpoint for multi-student support
+      await adminApi.addStudentToSeat(selectedSeat, {
         studentName: selectedStudent.name,
-        subscriptionPlan: selectedPlan.planName,
-        allocatedDate: today.toISOString().split("T")[0],
-        expiryDate: expiryDate.toISOString().split("T")[0],
+        planName: selectedPlan.planName,
+        adharNumber: selectedStudent.adharNumber,
+        slot: selectedStudent.slot || "Full day",
+        feePaid: false,
       });
 
       await refreshSeats();
@@ -331,8 +330,8 @@ const SeatsView: React.FC = () => {
     );
 
     if (sectionSeats.length === 0) {
-      // For Section B, default to 39 seats if none exist
-      return section === "B" ? 39 : 0;
+      // Default seat counts if no seats exist in database
+      return section === "A" ? 66 : 39;
     }
 
     const sectionNumbers = sectionSeats
@@ -341,8 +340,8 @@ const SeatsView: React.FC = () => {
 
     const maxSeat = sectionNumbers.length > 0 ? Math.max(...sectionNumbers) : 0;
 
-    // For Section B, ensure minimum of 39 seats
-    return section === "B" ? Math.max(maxSeat, 39) : maxSeat;
+    // Ensure minimum seat counts for both sections
+    return section === "A" ? Math.max(maxSeat, 66) : Math.max(maxSeat, 39);
   };
 
   // Get dynamic seat range for display
@@ -350,7 +349,14 @@ const SeatsView: React.FC = () => {
     const maxSeat = getSectionSeatCount(section);
     if (maxSeat === 0) return "No seats";
 
-    // For Section B, show default range even if no seats exist in DB
+    // Show default ranges even if no seats exist in DB
+    if (section === "A" && maxSeat === 66) {
+      const actualSeats = seatData.seats.filter((seat) =>
+        seat.seatNumber.startsWith("A")
+      ).length;
+      if (actualSeats === 0) return "1-66";
+    }
+
     if (section === "B" && maxSeat === 39) {
       const actualSeats = seatData.seats.filter((seat) =>
         seat.seatNumber.startsWith("B")
@@ -374,14 +380,11 @@ const SeatsView: React.FC = () => {
     let maxExistingSeat =
       sectionNumbers.length > 0 ? Math.max(...sectionNumbers) : 0;
 
-    // For Section B, ensure we show at least 39 seats
-    if (section === "B") {
+    // Ensure we show the correct number of seats for both sections
+    if (section === "A") {
+      maxExistingSeat = Math.max(maxExistingSeat, 66);
+    } else if (section === "B") {
       maxExistingSeat = Math.max(maxExistingSeat, 39);
-    }
-
-    // If no seats exist for Section A, return empty array
-    if (section === "A" && maxExistingSeat === 0) {
-      return [];
     }
 
     // Generate seats up to the maximum seat number
@@ -1306,18 +1309,6 @@ const SeatsView: React.FC = () => {
                               </div>
                               <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                                  Date of Birth
-                                </label>
-                                <p className="text-sm text-gray-900">
-                                  {student.dateOfBirth
-                                    ? new Date(
-                                        student.dateOfBirth
-                                      ).toLocaleDateString()
-                                    : "-"}
-                                </p>
-                              </div>
-                              <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
                                   Slot
                                 </label>
                                 <p className="text-sm text-gray-900">
@@ -1330,14 +1321,6 @@ const SeatsView: React.FC = () => {
                                 </label>
                                 <p className="text-sm text-gray-900">
                                   {student.adharNumber || "-"}
-                                </p>
-                              </div>
-                              <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                  ID Number
-                                </label>
-                                <p className="text-sm text-gray-900">
-                                  {student.idNumber || "-"}
                                 </p>
                               </div>
                               <div>

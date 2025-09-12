@@ -245,4 +245,14 @@ export const adminApi = {
     apiRequest<{message: string; sectionBSeats: number}>("/seats/initialize", {
       method: "POST",
     }),
+  addStudentToSeat: (seatNumber: string, studentData: any) =>
+    apiRequest<{
+      message: string;
+      seatNumber: string;
+      newStudent: any;
+      totalStudentsInSeat: number;
+    }>(`/seat/${seatNumber}/add-student`, {
+      method: "POST",
+      body: JSON.stringify(studentData),
+    }),
 };

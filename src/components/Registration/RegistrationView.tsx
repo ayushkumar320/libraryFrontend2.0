@@ -9,8 +9,6 @@ import {SubscriptionPlan} from "../../types/api";
 const RegistrationView: React.FC = () => {
   const [formData, setFormData] = useState({
     name: "",
-    idNumber: "",
-    dateOfBirth: "",
     fatherName: "",
     slot: "",
     subscriptionPlan: "",
@@ -140,7 +138,6 @@ const RegistrationView: React.FC = () => {
       // Validate required fields
       if (
         !formData.name ||
-        !formData.idNumber ||
         !formData.adharNumber ||
         !formData.subscriptionPlan
       ) {
@@ -199,12 +196,10 @@ const RegistrationView: React.FC = () => {
           formData.joiningDate || new Date().toISOString().split("T")[0], // YYYY-MM-DD format
         feePaid: formData.feePaid,
         seatNumber: fullSeatNumber,
-        dateOfBirth: formData.dateOfBirth || undefined,
         fatherName: formData.fatherName || undefined,
         address: formData.address?.trim(),
         examPreparingFor: formData.examPreparingFor?.trim() || undefined,
         schoolOrCollegeName: formData.schoolOrCollegeName?.trim() || undefined,
-        idNumber: parseInt(formData.idNumber),
         isActive: formData.isActive,
         lockerService: formData.lockerService,
       };
@@ -228,8 +223,6 @@ const RegistrationView: React.FC = () => {
       );
       setFormData({
         name: "",
-        idNumber: "",
-        dateOfBirth: "",
         fatherName: "",
         slot: "",
         subscriptionPlan: "",
@@ -270,10 +263,6 @@ const RegistrationView: React.FC = () => {
             )
           ) {
             errorMessage = "A student with this Aadhar number already exists.";
-          } else if (
-            error.message.includes("User with this ID number already exists")
-          ) {
-            errorMessage = "A student with this ID number already exists.";
           } else if (error.message.includes("This seat is already occupied")) {
             errorMessage =
               "This seat is already occupied. Please choose a different seat.";
@@ -288,11 +277,9 @@ const RegistrationView: React.FC = () => {
           } else if (error.message.includes("Missing required fields")) {
             errorMessage = "Please fill in all required fields.";
           } else if (
-            error.message.includes(
-              "adharNumber and idNumber must be valid numbers"
-            )
+            error.message.includes("adharNumber must be a valid number")
           ) {
-            errorMessage = "Aadhar number and ID number must be valid numbers.";
+            errorMessage = "Aadhar number must be a valid number.";
           } else {
             errorMessage = error.message;
           }
@@ -329,42 +316,6 @@ const RegistrationView: React.FC = () => {
                   onChange={handleInputChange}
                   required
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  ID Number
-                </label>
-                <input
-                  type="number"
-                  name="idNumber"
-                  value={formData.idNumber}
-                  onChange={handleInputChange}
-                  required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Date of Birth
-                </label>
-                <DatePicker
-                  selected={fromYMD(formData.dateOfBirth)}
-                  onChange={(date) =>
-                    setFormData((p) => ({
-                      ...p,
-                      dateOfBirth: toYMD(date as Date),
-                    }))
-                  }
-                  placeholderText="dd/mm/yyyy"
-                  dateFormat="dd/MM/yyyy"
-                  showYearDropdown
-                  showMonthDropdown
-                  scrollableYearDropdown
-                  yearDropdownItemNumber={80}
-                  maxDate={new Date()}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  popperPlacement="bottom-start"
                 />
               </div>
               <div>

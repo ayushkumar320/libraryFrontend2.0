@@ -16,7 +16,6 @@ const StudentsView: React.FC = () => {
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [editFormData, setEditFormData] = useState({
     name: "",
-    dateOfBirth: "",
     fatherName: "",
     subscriptionPlan: "",
     joiningDate: "",
@@ -121,7 +120,6 @@ const StudentsView: React.FC = () => {
 
     setEditFormData({
       name: student.name,
-      dateOfBirth: student.dateOfBirth ? student.dateOfBirth.split("T")[0] : "",
       fatherName: student.fatherName || "",
       subscriptionPlan:
         typeof student.subscriptionPlan === "string"
@@ -178,7 +176,6 @@ const StudentsView: React.FC = () => {
       const fullSeatNumber = `${editFormData.seatSection}${editFormData.seatNumber}`;
       const submitData = {
         name: editFormData.name,
-        dateOfBirth: editFormData.dateOfBirth || undefined,
         fatherName: editFormData.fatherName || undefined,
         address: editFormData.address,
         adharNumber: parseInt(editFormData.adharNumber),
@@ -319,9 +316,6 @@ const StudentsView: React.FC = () => {
                   Student
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  DOB
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Seat
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -358,16 +352,8 @@ const StudentsView: React.FC = () => {
                         <div className="text-sm font-medium text-gray-900">
                           {student.name}
                         </div>
-                        <div className="text-sm text-gray-500">
-                          ID: {student.idNumber}
-                        </div>
                       </div>
                     </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {student.dateOfBirth
-                      ? new Date(student.dateOfBirth).toLocaleDateString()
-                      : "-"}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {student.seatNumber}
@@ -483,18 +469,6 @@ const StudentsView: React.FC = () => {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Date of Birth
-                  </label>
-                  <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded">
-                    {selectedStudent.dateOfBirth
-                      ? new Date(
-                          selectedStudent.dateOfBirth
-                        ).toLocaleDateString()
-                      : "-"}
-                  </p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
                     Father's Name
                   </label>
                   <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded">
@@ -507,14 +481,6 @@ const StudentsView: React.FC = () => {
                   </label>
                   <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded">
                     {(selectedStudent as any).slot || "-"}
-                  </p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    ID Number
-                  </label>
-                  <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded">
-                    {selectedStudent.idNumber}
                   </p>
                 </div>
                 <div>
@@ -673,18 +639,6 @@ const StudentsView: React.FC = () => {
                       value={editFormData.name}
                       onChange={handleEditInputChange}
                       required
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Date of Birth
-                    </label>
-                    <input
-                      type="date"
-                      name="dateOfBirth"
-                      value={editFormData.dateOfBirth}
-                      onChange={handleEditInputChange}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   </div>

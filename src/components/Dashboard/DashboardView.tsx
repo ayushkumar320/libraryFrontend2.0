@@ -1,7 +1,4 @@
 import React, {useState, useEffect} from "react";
-import DatePicker from "react-datepicker";
-import {format, parseISO} from "date-fns";
-import "react-datepicker/dist/react-datepicker.css";
 import {Users, Armchair, Clock, FileText} from "lucide-react";
 import StatsCard from "./StatsCard";
 import {adminApi} from "../../services/api";
@@ -20,8 +17,6 @@ const DashboardView: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [registrationForm, setRegistrationForm] = useState({
     name: "", // Changed from fullName
-    idNumber: "", // Changed from email
-    dateOfBirth: "",
     fatherName: "",
     slot: "",
     adharNumber: "", // Will be converted to number
@@ -35,10 +30,6 @@ const DashboardView: React.FC = () => {
     isActive: false,
     lockerService: false,
   });
-
-  // Date helpers to keep format consistent with backend (YYYY-MM-DD)
-  const toYMD = (d: Date | null) => (d ? format(d, "yyyy-MM-dd") : "");
-  const fromYMD = (s: string) => (s ? parseISO(s) : null);
 
   // Notification system
   const [notification, setNotification] = useState<{
@@ -99,7 +90,6 @@ const DashboardView: React.FC = () => {
   const handleRegistrationSubmit = async () => {
     if (
       !registrationForm.name ||
-      !registrationForm.idNumber ||
       !registrationForm.adharNumber ||
       !registrationForm.subscriptionPlan ||
       !registrationForm.seatSection ||
@@ -116,8 +106,6 @@ const DashboardView: React.FC = () => {
       const userData = {
         name: registrationForm.name,
         slot: registrationForm.slot || undefined,
-        idNumber: parseInt(registrationForm.idNumber),
-        dateOfBirth: registrationForm.dateOfBirth || undefined,
         fatherName: registrationForm.fatherName || undefined,
         adharNumber: parseInt(registrationForm.adharNumber),
         address: registrationForm.address,
@@ -136,8 +124,6 @@ const DashboardView: React.FC = () => {
       // Reset form
       setRegistrationForm({
         name: "",
-        idNumber: "",
-        dateOfBirth: "",
         fatherName: "",
         slot: "",
         adharNumber: "",
@@ -177,7 +163,7 @@ const DashboardView: React.FC = () => {
               "Invalid subscription plan selected. Please select a valid plan.";
           } else if (error.message.includes("already exists")) {
             errorMessage =
-              "Student with this Aadhar number, ID number, or seat already exists.";
+              "Student with this Aadhar number or seat already exists.";
           } else {
             errorMessage = "Invalid data provided. Please check all fields.";
           }
@@ -280,48 +266,8 @@ const DashboardView: React.FC = () => {
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  ID Number
-                </label>
-                <input
-                  type="number"
-                  placeholder="Enter ID number"
-                  value={registrationForm.idNumber}
-                  onChange={(e) =>
-                    setRegistrationForm((prev) => ({
-                      ...prev,
-                      idNumber: e.target.value,
-                    }))
-                  }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Date of Birth
-                </label>
-                <DatePicker
-                  selected={fromYMD(registrationForm.dateOfBirth)}
-                  onChange={(date) =>
-                    setRegistrationForm((prev) => ({
-                      ...prev,
-                      dateOfBirth: toYMD(date as Date),
-                    }))
-                  }
-                  placeholderText="dd/mm/yyyy"
-                  dateFormat="dd/MM/yyyy"
-                  showYearDropdown
-                  showMonthDropdown
-                  scrollableYearDropdown
-                  yearDropdownItemNumber={80}
-                  maxDate={new Date()}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  popperPlacement="bottom-start"
-                />
-              </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Father's Name
