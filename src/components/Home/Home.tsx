@@ -229,13 +229,12 @@ const Home: React.FC = () => {
           </div>
         </div>
       </section>
-
       {/* Footer CTA */}
       <footer className="py-12 border-t border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <p className="text-gray-600">
-              © {new Date().getFullYear()} NaiUdaan Library
+              © {new Date().getFullYear()} NaiUdaan Library | Contact Us: 6206283852
             </p>
             <div className="flex items-center gap-3">
               <a
@@ -246,6 +245,7 @@ const Home: React.FC = () => {
               >
                 Leave a Review <Star className="w-4 h-4" />
               </a>
+              
               <a
                 href="#features"
                 className="px-4 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition"
