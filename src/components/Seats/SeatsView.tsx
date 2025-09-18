@@ -41,6 +41,16 @@ const SeatsView: React.FC = () => {
     singleSeatNumber: "", // For single seat addition
   });
 
+  // Form data for editing seat
+  const [editSeatForm, setEditSeatForm] = useState({
+    studentName: "",
+    adharNumber: "",
+    planName: "",
+    slot: "Full day",
+    feePaid: false,
+    isActive: true,
+  });
+
   // Notification state
   const [notification, setNotification] = useState<{
     show: boolean;
@@ -197,7 +207,152 @@ const SeatsView: React.FC = () => {
   };
 
   const handleEditSeat = () => {
+    if (selectedSeats.length === 0) {
+      showNotification("error", "Please select a seat to edit");
+      return;
+    }
+    if (selectedSeats.length > 1) {
+      showNotification("error", "Please select only one seat to edit");
+      return;
+    }
+    setSelectedSeat(selectedSeats[0]);
+    
+    // Pre-populate form with current seat data
+    const currentSeat = seatData.seats.find(seat => seat.seatNumber === selectedSeats[0]);
+    if (currentSeat) {
+      setEditSeatForm({
+        studentName: currentSeat.studentName || "",
+        adharNumber: "",
+        planName: currentSeat.subscriptionPlan || "",
+        slot: "Full day",
+        feePaid: false,
+        isActive: currentSeat.status === "Occupied",
+      });
+    }
+    
     setEditSeatModalOpen(true);
+  };
+
+  const handleEditSeatSubmit = async () => {
+    try {
+      if (!selectedSeat) {
+        showNotification("error", "No seat selected");
+        return;
+      }
+
+      // If making seat available, only update status
+      if (!editSeatForm.isActive) {
+        await adminApi.updateSeat(selectedSeat, { isActive: false });
+        await refreshSeats();
+        showNotification("success", `Seat ${selectedSeat} made available!`);
+        setEditSeatModalOpen(false);
+        setSelectedSeats([]);
+        return;
+      }
+
+      // Validate required fields for student assignment
+      if (!editSeatForm.studentName || !editSeatForm.adharNumber || !editSeatForm.planName) {
+        showNotification("error", "Please fill in all required fields");
+        return;
+      }
+
+      await adminApi.updateSeat(selectedSeat, editSeatForm);
+      await refreshSeats();
+      showNotification("success", `Seat ${selectedSeat} updated successfully!`);
+      setEditSeatModalOpen(false);
+      setSelectedSeats([]);
+    } catch (error: any) {
+      console.error("Error updating seat:", error);
+      const errorMessage = error?.message || "Failed to update seat";
+      showNotification("error", errorMessage);
+    }
+  };
+
+  const handleAddSeat = async () => {
+    try {
+      console.log("handleAddSeat called");
+      if (addSeatForm.addMode === "single") {
+        const seatNum = parseInt(addSeatForm.singleSeatNumber, 10);
+        if (isNaN(seatNum) || seatNum < 1) {
+          showNotification(
+            "error",
+            "Please enter a valid seat number (minimum 1)"
+          );
+          return;
+        }
+
+        const seatNumber = `${addSeatForm.section}${seatNum}`;
+        console.log(`Checking for existing seat: ${seatNumber}`);
+        const existingSeat = seatData.seats.find(
+          (s) => s.seatNumber === seatNumber
+        );
+        if (existingSeat) {
+          showNotification("error", `Seat ${seatNumber} already exists`);
+          return;
+        }
+
+        console.log(`Adding seat: ${seatNumber}`);
+        await adminApi.addSeat({seatNumber});
+        console.log(`Seat ${seatNumber} added, refreshing data...`);
+        await refreshSeats();
+        console.log(`Data refreshed for seat ${seatNumber}`);
+        showNotification("success", `Seat ${seatNumber} added successfully!`);
+      } else {
+        const start = parseInt(addSeatForm.startNumber, 10);
+        const end = parseInt(addSeatForm.endNumber, 10);
+        if (isNaN(start) || isNaN(end) || end < start || start < 1) {
+          showNotification(
+            "error",
+            "Invalid seat range. Start and end must be valid numbers, and start must be at least 1"
+          );
+          return;
+        }
+
+        const existingSeats = [];
+        for (let num = start; num <= end; num++) {
+          const seatNumber = `${addSeatForm.section}${num}`;
+          const existingSeat = seatData.seats.find(
+            (s) => s.seatNumber === seatNumber
+          );
+          if (existingSeat) {
+            existingSeats.push(seatNumber);
+          }
+        }
+
+        if (existingSeats.length > 0) {
+          showNotification(
+            "error",
+            `These seats already exist: ${existingSeats.join(", ")}`
+          );
+          return;
+        }
+
+        console.log(`Adding seats: ${addSeatForm.section}${start} to ${addSeatForm.section}${end}`);
+        for (let num = start; num <= end; num++) {
+          const seatNumber = `${addSeatForm.section}${num}`;
+          console.log(`Adding seat: ${seatNumber}`);
+          await adminApi.addSeat({seatNumber});
+        }
+        console.log(`All seats added, refreshing data...`);
+        await refreshSeats();
+        console.log(`Data refreshed for seat range`);
+        showNotification(
+          "success",
+          `${end - start + 1} seats added successfully!`
+        );
+      }
+      setAddSeatModalOpen(false);
+      setAddSeatForm({
+        section: "A",
+        startNumber: "",
+        endNumber: "",
+        addMode: "single",
+        singleSeatNumber: "",
+      });
+    } catch (e) {
+      console.error("Add seats error", e);
+      showNotification("error", "Failed to add seats");
+    }
   };
 
   const refreshSeats = async () => {
@@ -530,10 +685,10 @@ const SeatsView: React.FC = () => {
             </button>
             <button
               onClick={handleEditSeat}
-              className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center space-x-2"
+              className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors flex items-center space-x-2"
             >
               <User className="w-4 h-4" />
-              <span>Edit Seats</span>
+              <span>Manage Seats</span>
             </button>
             {selectedSeats.length > 0 && (
               <button
@@ -1029,111 +1184,7 @@ const SeatsView: React.FC = () => {
                 Cancel
               </button>
               <button
-                onClick={async () => {
-                  try {
-                    if (addSeatForm.addMode === "single") {
-                      const seatNum = parseInt(
-                        addSeatForm.singleSeatNumber,
-                        10
-                      );
-                      if (isNaN(seatNum) || seatNum < 1) {
-                        showNotification(
-                          "error",
-                          "Please enter a valid seat number (minimum 1)"
-                        );
-                        return;
-                      }
-
-                      // Check if seat already exists
-                      const seatNumber = `${addSeatForm.section}${seatNum}`;
-                      const existingSeat = seatData.seats.find(
-                        (s) => s.seatNumber === seatNumber
-                      );
-                      if (existingSeat) {
-                        showNotification(
-                          "error",
-                          `Seat ${seatNumber} already exists`
-                        );
-                        return;
-                      }
-
-                      console.log(`Adding seat: ${seatNumber}`);
-                      await adminApi.addSeat({seatNumber});
-                      console.log(
-                        `Seat ${seatNumber} added, refreshing data...`
-                      );
-                      await refreshSeats();
-                      console.log(`Data refreshed for seat ${seatNumber}`);
-                      showNotification(
-                        "success",
-                        `Seat ${seatNumber} added successfully!`
-                      );
-                    } else {
-                      const start = parseInt(addSeatForm.startNumber, 10);
-                      const end = parseInt(addSeatForm.endNumber, 10);
-                      if (
-                        isNaN(start) ||
-                        isNaN(end) ||
-                        end < start ||
-                        start < 1
-                      ) {
-                        showNotification(
-                          "error",
-                          "Invalid seat range. Start and end must be valid numbers, and start must be at least 1"
-                        );
-                        return;
-                      }
-
-                      // Check for existing seats in the range
-                      const existingSeats = [];
-                      for (let num = start; num <= end; num++) {
-                        const seatNumber = `${addSeatForm.section}${num}`;
-                        const existingSeat = seatData.seats.find(
-                          (s) => s.seatNumber === seatNumber
-                        );
-                        if (existingSeat) {
-                          existingSeats.push(seatNumber);
-                        }
-                      }
-
-                      if (existingSeats.length > 0) {
-                        showNotification(
-                          "error",
-                          `These seats already exist: ${existingSeats.join(
-                            ", "
-                          )}`
-                        );
-                        return;
-                      }
-
-                      console.log(`Adding seats: B${start} to B${end}`);
-                      for (let num = start; num <= end; num++) {
-                        const seatNumber = `${addSeatForm.section}${num}`;
-                        console.log(`Adding seat: ${seatNumber}`);
-                        await adminApi.addSeat({seatNumber});
-                      }
-                      console.log(`All seats added, refreshing data...`);
-                      await refreshSeats();
-                      console.log(`Data refreshed for seat range`);
-                      showNotification(
-                        "success",
-                        `${end - start + 1} seats added successfully!`
-                      );
-                    }
-                    setAddSeatModalOpen(false);
-                    // Reset form
-                    setAddSeatForm({
-                      section: "A",
-                      startNumber: "",
-                      endNumber: "",
-                      addMode: "single",
-                      singleSeatNumber: "",
-                    });
-                  } catch (e) {
-                    console.error("Add seats error", e);
-                    showNotification("error", "Failed to add seats");
-                  }
-                }}
+                onClick={handleAddSeat}
                 className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 transition-colors"
               >
                 Add {addSeatForm.addMode === "single" ? "Seat" : "Seats"}
@@ -1143,14 +1194,14 @@ const SeatsView: React.FC = () => {
         </div>
       )}
 
-      {/* Edit Seats Modal */}
+      {/* Edit Seat Modal */}
       {editSeatModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 animate-fadeIn">
           <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 transform transition-all duration-300 animate-slideIn">
             <div className="p-6 border-b border-gray-200">
               <div className="flex items-center justify-between">
                 <h2 className="text-xl font-semibold text-gray-900">
-                  Edit Seats
+                  Edit Seat {selectedSeat}
                 </h2>
                 <button
                   onClick={() => setEditSeatModalOpen(false)}
@@ -1162,56 +1213,118 @@ const SeatsView: React.FC = () => {
             </div>
             <div className="p-6">
               <div className="space-y-4">
-                <div>
-                  <h3 className="text-lg font-medium text-gray-900 mb-4">
-                    Selected Seats ({selectedSeats.length})
-                  </h3>
-                  {selectedSeats.length === 0 ? (
-                    <p className="text-gray-500">
-                      No seats selected. Please select seats from the grid
-                      above.
-                    </p>
-                  ) : (
-                    <div className="grid grid-cols-4 gap-2">
-                      {selectedSeats.map((seatNumber) => (
-                        <div
-                          key={seatNumber}
-                          className="bg-gray-100 p-2 rounded text-center"
-                        >
-                          {seatNumber}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {selectedSeats.length > 0 && (
-                  <div className="space-y-4">
-                    <div className="border-t pt-4">
-                      <h4 className="text-md font-medium text-gray-900 mb-3">
-                        Bulk Actions
-                      </h4>
-                      <div className="flex space-x-3">
-                        <button
-                          onClick={handleBulkDeleteSeats}
-                          className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors flex items-center space-x-2"
-                        >
-                          <X className="w-4 h-4" />
-                          <span>Delete Selected</span>
-                        </button>
-                        <button
-                          onClick={() => {
-                            setSelectedSeats([]);
-                            showNotification("success", "Selection cleared");
-                          }}
-                          className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors"
-                        >
-                          Clear Selection
-                        </button>
-                      </div>
-                    </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Student Name *
+                    </label>
+                    <input
+                      type="text"
+                      value={editSeatForm.studentName}
+                      onChange={(e) =>
+                        setEditSeatForm((prev) => ({
+                          ...prev,
+                          studentName: e.target.value,
+                        }))
+                      }
+                      placeholder="Enter student name"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      required
+                    />
                   </div>
-                )}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Aadhar Number *
+                    </label>
+                    <input
+                      type="number"
+                      value={editSeatForm.adharNumber}
+                      onChange={(e) =>
+                        setEditSeatForm((prev) => ({
+                          ...prev,
+                          adharNumber: e.target.value,
+                        }))
+                      }
+                      placeholder="Enter Aadhar number"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Subscription Plan *
+                    </label>
+                    <select
+                      value={editSeatForm.planName}
+                      onChange={(e) =>
+                        setEditSeatForm((prev) => ({
+                          ...prev,
+                          planName: e.target.value,
+                        }))
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      required
+                    >
+                      <option value="">Select a plan</option>
+                      {plans.map((plan) => (
+                        <option key={plan._id} value={plan.planName}>
+                          {plan.planName} - ₹{plan.price}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Slot
+                    </label>
+                    <select
+                      value={editSeatForm.slot}
+                      onChange={(e) =>
+                        setEditSeatForm((prev) => ({
+                          ...prev,
+                          slot: e.target.value,
+                        }))
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="Morning">Morning</option>
+                      <option value="Evening">Evening</option>
+                      <option value="Full day">Full day</option>
+                      <option value="24 Hour">24 Hour</option>
+                      <option value="Short Slot">Short Slot</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="flex items-center space-x-4">
+                  <label className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={editSeatForm.feePaid}
+                      onChange={(e) =>
+                        setEditSeatForm((prev) => ({
+                          ...prev,
+                          feePaid: e.target.checked,
+                        }))
+                      }
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                    />
+                    <span className="ml-2 text-sm text-gray-700">Fee Paid</span>
+                  </label>
+                  <label className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={editSeatForm.isActive}
+                      onChange={(e) =>
+                        setEditSeatForm((prev) => ({
+                          ...prev,
+                          isActive: e.target.checked,
+                        }))
+                      }
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                    />
+                    <span className="ml-2 text-sm text-gray-700">Active</span>
+                  </label>
+                </div>
               </div>
             </div>
             <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-end space-x-3">
@@ -1219,7 +1332,13 @@ const SeatsView: React.FC = () => {
                 onClick={() => setEditSeatModalOpen(false)}
                 className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
               >
-                Close
+                Cancel
+              </button>
+              <button
+                onClick={handleEditSeatSubmit}
+                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 transition-colors"
+              >
+                Update Seat
               </button>
             </div>
           </div>
