@@ -33,6 +33,35 @@ const StudentsView: React.FC = () => {
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
   const [editLoading, setEditLoading] = useState(false);
 
+  // Helper to calculate expiry date from joiningDate and plan duration
+  const calculateExpiryDate = (student: Student): string => {
+    const plan =
+      typeof student.subscriptionPlan === "string"
+        ? plans.find((p: SubscriptionPlan) => p._id === student.subscriptionPlan)
+        : student.subscriptionPlan;
+    if (!plan || !student.joiningDate) return "-";
+    const joiningDate = new Date(student.joiningDate);
+    const duration = plan.duration.toLowerCase();
+
+    const expiry = new Date(joiningDate);
+    if (duration.includes("day")) {
+      const days = parseInt(duration.match(/\d+/)?.[0] || "0");
+      expiry.setDate(joiningDate.getDate() + days);
+    } else if (duration.includes("week")) {
+      const weeks = parseInt(duration.match(/\d+/)?.[0] || "0");
+      expiry.setDate(joiningDate.getDate() + weeks * 7);
+    } else if (duration.includes("month")) {
+      const months = parseInt(duration.match(/\d+/)?.[0] || "0");
+      expiry.setMonth(joiningDate.getMonth() + months);
+    } else if (duration.includes("year")) {
+      const years = parseInt(duration.match(/\d+/)?.[0] || "0");
+      expiry.setFullYear(joiningDate.getFullYear() + years);
+    } else {
+      return "-";
+    }
+    return expiry.toLocaleDateString();
+  };
+
   // Helpers to resolve plan info and fees
   const getPlanById = (planId: string | undefined) =>
     plans.find((p) => p._id === planId);
@@ -132,10 +161,10 @@ const StudentsView: React.FC = () => {
       seatNumber,
       feePaid: student.feePaid,
       isActive: student.isActive,
-      slot: (student as any).slot || "",
-      examPreparingFor: (student as any).examPreparingFor || "",
-      schoolOrCollegeName: (student as any).schoolOrCollegeName || "",
-      lockerService: (student as any).lockerService || false,
+  slot: student.slot || "",
+  examPreparingFor: student.examPreparingFor || "",
+  schoolOrCollegeName: student.schoolOrCollegeName || "",
+  lockerService: student.lockerService || false,
     });
     setEditModalOpen(true);
   };
@@ -281,6 +310,7 @@ const StudentsView: React.FC = () => {
               value={planFilter}
               onChange={(e) => setPlanFilter(e.target.value)}
               className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              title="Filter by plan"
             >
               <option>All Plans</option>
               {plans.map((plan) => (
@@ -293,19 +323,13 @@ const StudentsView: React.FC = () => {
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
               className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              title="Filter by status"
             >
               <option>All Status</option>
               <option>Paid</option>
               <option>Pending</option>
               <option>Overdue</option>
             </select>
-            <button
-              className="p-2 text-gray-500 hover:text-gray-700 border border-gray-300 rounded-lg"
-              aria-label="Filter"
-            >
-              <Filter className="w-5 h-5" />
-            </button>
-          </div>
         </div>
 
         <div className="overflow-x-auto -mx-4 sm:mx-0">
@@ -367,11 +391,14 @@ const StudentsView: React.FC = () => {
                     ₹
                     {(
                       getPlanPriceForStudent(student) +
-                      ((student as any).lockerService ? 100 : 0)
+                      (student.lockerService ? 100 : 0)
                     ).toLocaleString("en-IN")}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {new Date(student.joiningDate).toLocaleDateString()}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {calculateExpiryDate(student)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span
@@ -480,7 +507,7 @@ const StudentsView: React.FC = () => {
                     Slot
                   </label>
                   <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded">
-                    {(selectedStudent as any).slot || "-"}
+                    {selectedStudent.slot || "-"}
                   </p>
                 </div>
                 <div>
@@ -516,9 +543,7 @@ const StudentsView: React.FC = () => {
                               (p) => p._id === selectedStudent.subscriptionPlan
                             )?.price || 0
                           : selectedStudent.subscriptionPlan.price;
-                      const locker = (selectedStudent as any).lockerService
-                        ? 100
-                        : 0;
+                      const locker = selectedStudent.lockerService ? 100 : 0;
                       return (base + locker).toLocaleString("en-IN");
                     })()}
                   </p>
@@ -536,11 +561,7 @@ const StudentsView: React.FC = () => {
                     Expiry Date
                   </label>
                   <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded">
-                    {selectedStudent.expiryDate
-                      ? new Date(
-                          selectedStudent.expiryDate
-                        ).toLocaleDateString()
-                      : "-"}
+                    {calculateExpiryDate(selectedStudent)}
                   </p>
                 </div>
                 <div>
@@ -568,7 +589,7 @@ const StudentsView: React.FC = () => {
                     School/College Name
                   </label>
                   <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded">
-                    {(selectedStudent as any).schoolOrCollegeName || "-"}
+                    {selectedStudent.schoolOrCollegeName || "-"}
                   </p>
                 </div>
                 <div>
@@ -584,9 +605,7 @@ const StudentsView: React.FC = () => {
                     Locker Service
                   </label>
                   <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded">
-                    {(selectedStudent as any).lockerService
-                      ? "Yes (+₹100)"
-                      : "No"}
+                    {selectedStudent.lockerService ? "Yes (+₹100)" : "No"}
                   </p>
                 </div>
                 <div>
@@ -640,6 +659,8 @@ const StudentsView: React.FC = () => {
                       onChange={handleEditInputChange}
                       required
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Enter full name"
+                      title="Full Name"
                     />
                   </div>
                   <div>
@@ -652,6 +673,8 @@ const StudentsView: React.FC = () => {
                       value={editFormData.fatherName}
                       onChange={handleEditInputChange}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Enter father's name"
+                      title="Father's Name"
                     />
                   </div>
                 </div>
@@ -665,6 +688,7 @@ const StudentsView: React.FC = () => {
                       value={editFormData.slot}
                       onChange={handleEditInputChange}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      title="Slot"
                     >
                       <option value="">Select slot</option>
                       <option value="Morning">Morning</option>
@@ -706,6 +730,8 @@ const StudentsView: React.FC = () => {
                       onChange={handleEditInputChange}
                       required
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Joining date"
+                      title="Joining Date"
                     />
                   </div>
                   <div>
@@ -719,6 +745,8 @@ const StudentsView: React.FC = () => {
                       onChange={handleEditInputChange}
                       required
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Aadhar number"
+                      title="Aadhar Number"
                     />
                   </div>
                 </div>
@@ -733,6 +761,8 @@ const StudentsView: React.FC = () => {
                     rows={3}
                     required
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Enter address"
+                    title="Address"
                   />
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -746,6 +776,8 @@ const StudentsView: React.FC = () => {
                       value={editFormData.examPreparingFor}
                       onChange={handleEditInputChange}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Exam preparing for"
+                      title="Exam Preparing For"
                     />
                   </div>
                   <div>
@@ -758,6 +790,8 @@ const StudentsView: React.FC = () => {
                       value={editFormData.schoolOrCollegeName}
                       onChange={handleEditInputChange}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="School or college name"
+                      title="School/College Name"
                     />
                   </div>
                 </div>
@@ -773,6 +807,7 @@ const StudentsView: React.FC = () => {
                         onChange={handleEditInputChange}
                         required
                         className="w-20 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        title="Seat Section"
                       >
                         <option value="A">A</option>
                         <option value="B">B</option>
@@ -787,6 +822,7 @@ const StudentsView: React.FC = () => {
                         max="99"
                         required
                         className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        title="Seat Number"
                       />
                     </div>
                     <p className="text-xs text-gray-500 mt-1">
@@ -912,6 +948,7 @@ const StudentsView: React.FC = () => {
                 setNotification((prev) => ({...prev, show: false}))
               }
               className="flex-shrink-0 ml-4 text-white hover:text-gray-200 transition-colors"
+              title="Close notification"
             >
               <X className="w-4 h-4" />
             </button>
@@ -919,7 +956,7 @@ const StudentsView: React.FC = () => {
         </div>
       )}
     </div>
+    </div>
   );
 };
-
 export default StudentsView;
