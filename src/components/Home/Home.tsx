@@ -1,4 +1,4 @@
-import React, {useEffect} from "react";
+import React, {useEffect, useState} from "react";
 import {
   ArrowRight,
   MapPin,
@@ -10,6 +10,9 @@ import {
   Sun,
   Building2,
   Trees,
+  Phone,
+  Copy,
+  Check,
 } from "lucide-react";
 
 // NaiUdaan Library – Modern, light-themed landing section
@@ -64,6 +67,17 @@ const features = [
 ];
 
 const Home: React.FC = () => {
+  const [copied, setCopied] = useState(false);
+
+  const copyPhoneNumber = async () => {
+    try {
+      await navigator.clipboard.writeText("6207694500");
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error("Failed to copy phone number:", err);
+    }
+  };
   useEffect(() => {
     // Smooth reveal animation
     const obs = new IntersectionObserver(
@@ -120,6 +134,33 @@ const Home: React.FC = () => {
                 >
                   <MapPin className="w-4 h-4" /> View Location
                 </a>
+              </div>
+
+              {/* Contact Phone Number */}
+              <div className="mt-6 flex flex-wrap gap-3 items-center">
+                <div className="flex items-center gap-2 text-gray-600">
+                  <Phone className="w-5 h-5 text-blue-600" />
+                  <span className="text-sm font-medium">Contact us:</span>
+                </div>
+                <button
+                  onClick={copyPhoneNumber}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-50 hover:bg-blue-100 border border-blue-200 transition group"
+                  title="Click to copy phone number"
+                >
+                  <span className="font-semibold text-blue-800">
+                    6207694500
+                  </span>
+                  {copied ? (
+                    <Check className="w-4 h-4 text-green-600" />
+                  ) : (
+                    <Copy className="w-4 h-4 text-blue-600 group-hover:text-blue-800" />
+                  )}
+                </button>
+                {copied && (
+                  <span className="text-sm text-green-600 font-medium">
+                    Phone number copied!
+                  </span>
+                )}
               </div>
             </div>
             <div
