@@ -11,7 +11,6 @@ const SeatsView: React.FC = () => {
     seats: [],
   });
   const [loading, setLoading] = useState(true);
-  // Removed non-functional search and filter controls
   const [selectedSection, setSelectedSection] = useState<"A" | "B">("A");
 
   // Modal states
@@ -25,6 +24,7 @@ const SeatsView: React.FC = () => {
   const [students, setStudents] = useState<Student[]>([]);
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
   const [allocateLoading, setAllocateLoading] = useState(false);
+  const [operationLoading, setOperationLoading] = useState(false);
 
   // Form data for allocation
   const [allocationForm, setAllocationForm] = useState({
@@ -64,58 +64,58 @@ const SeatsView: React.FC = () => {
 
   useEffect(() => {
     const fetchData = async () => {
+      const timeout = setTimeout(() => {
+        if (loading) {
+          console.warn("Data fetching timeout - forcing loading to stop");
+          setLoading(false);
+          showNotification(
+            "error",
+            "Request timeout - please refresh the page"
+          );
+        }
+      }, 30000); // 30 second timeout
+
       try {
-        console.log("Seats: Fetching data...");
         const [seatResponse, studentsResponse, plansResponse] =
           await Promise.all([
             adminApi.getSeatManagement(),
             adminApi.getUsers(),
             adminApi.getSubscriptionPlans(),
           ]);
-        console.log("Seats: Received data:", {seatResponse, studentsResponse});
+
+        clearTimeout(timeout);
 
         if (seatResponse?.seats) {
-          // Check if Section B has no seats and initialize if needed
-          const sectionBSeats = seatResponse.seats.filter((seat) =>
-            seat.seatNumber.startsWith("B")
-          );
-
-          if (sectionBSeats.length === 0) {
-            try {
-              console.log("Initializing Section B with default 39 seats...");
-              await adminApi.initializeDefaultSeats();
-              // Refetch data after initialization
-              const updatedSeatResponse = await adminApi.getSeatManagement();
-              setSeatData(updatedSeatResponse);
-            } catch (initError) {
-              console.error("Error initializing default seats:", initError);
-              setSeatData(seatResponse);
-            }
-          } else {
-            setSeatData(seatResponse);
-          }
+          setSeatData(seatResponse);
         } else {
           setSeatData({
-            totalSeats: 0,
+            totalSeats: 105, // Default to expected total
             occupiedSeats: 0,
-            availableSeats: 0,
+            availableSeats: 105,
             seats: [],
           });
         }
 
         setStudents(studentsResponse || []);
         setPlans(plansResponse || []);
-      } catch (error) {
-        console.error("Error fetching data:", error);
-        showNotification("error", "Failed to fetch data from backend");
+      } catch (error: any) {
+        clearTimeout(timeout); // Clear timeout on error
+        showNotification(
+          "error",
+          `Failed to fetch data: ${error?.message || "Unknown error"}`
+        );
+
+        // Set fallback data to prevent empty UI
         setSeatData({
-          totalSeats: 0,
+          totalSeats: 105,
           occupiedSeats: 0,
-          availableSeats: 0,
+          availableSeats: 105,
           seats: [],
         });
         setStudents([]);
+        setPlans([]);
       } finally {
+        clearTimeout(timeout); // Ensure timeout is always cleared
         setLoading(false);
       }
     };
@@ -144,7 +144,6 @@ const SeatsView: React.FC = () => {
       setSelectedSeatDetails(seatInfo);
       setSeatDetailsModalOpen(true);
     } catch (error) {
-      console.error("Error fetching seat details:", error);
       showNotification("error", "Failed to fetch seat details");
     }
   };
@@ -156,13 +155,29 @@ const SeatsView: React.FC = () => {
       return;
     }
     try {
+      setOperationLoading(true);
       await adminApi.deleteSeat(seatNumber);
       await refreshSeats();
+
+      // Multiple force refresh strategies to ensure UI updates
+      setOperationLoading(false);
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      setOperationLoading(true);
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      setOperationLoading(false);
+
+      // Also force section refresh
+      const currentSection = selectedSection;
+      setSelectedSection(currentSection === "A" ? "B" : "A");
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      setSelectedSection(currentSection);
+
       showNotification("success", `Seat ${seatNumber} deleted successfully!`);
     } catch (error: any) {
-      console.error("Error deleting seat:", error);
       const errorMessage = error?.message || "Failed to delete seat";
       showNotification("error", errorMessage);
+    } finally {
+      setOperationLoading(false);
     }
   };
 
@@ -189,20 +204,38 @@ const SeatsView: React.FC = () => {
     }
 
     try {
+      setOperationLoading(true);
       const deletePromises = selectedSeats.map((seatNumber) =>
         adminApi.deleteSeat(seatNumber)
       );
       await Promise.all(deletePromises);
       await refreshSeats();
+
+      // Multiple force refresh strategies to ensure UI updates
+      setOperationLoading(false);
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      setOperationLoading(true);
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      setOperationLoading(false);
+
+      // Also force section refresh
+      const currentSection = selectedSection;
+      setSelectedSection(currentSection === "A" ? "B" : "A");
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      setSelectedSection(currentSection);
+
       setSelectedSeats([]);
       showNotification(
         "success",
-        `${selectedSeats.length} seat(s) deleted successfully!`
+        `${selectedSeats.length} seat(s) (${selectedSeats.join(
+          ", "
+        )}) deleted successfully!`
       );
     } catch (error: any) {
-      console.error("Error deleting seats:", error);
       const errorMessage = error?.message || "Failed to delete some seats";
       showNotification("error", errorMessage);
+    } finally {
+      setOperationLoading(false);
     }
   };
 
@@ -216,9 +249,11 @@ const SeatsView: React.FC = () => {
       return;
     }
     setSelectedSeat(selectedSeats[0]);
-    
+
     // Pre-populate form with current seat data
-    const currentSeat = seatData.seats.find(seat => seat.seatNumber === selectedSeats[0]);
+    const currentSeat = seatData.seats.find(
+      (seat) => seat.seatNumber === selectedSeats[0]
+    );
     if (currentSeat) {
       setEditSeatForm({
         studentName: currentSeat.studentName || "",
@@ -229,7 +264,7 @@ const SeatsView: React.FC = () => {
         isActive: currentSeat.status === "Occupied",
       });
     }
-    
+
     setEditSeatModalOpen(true);
   };
 
@@ -242,7 +277,7 @@ const SeatsView: React.FC = () => {
 
       // If making seat available, only update status
       if (!editSeatForm.isActive) {
-        await adminApi.updateSeat(selectedSeat, { isActive: false });
+        await adminApi.updateSeat(selectedSeat, {isActive: false});
         await refreshSeats();
         showNotification("success", `Seat ${selectedSeat} made available!`);
         setEditSeatModalOpen(false);
@@ -251,13 +286,23 @@ const SeatsView: React.FC = () => {
       }
 
       // Validate required fields for student assignment
-      if (!editSeatForm.studentName || !editSeatForm.adharNumber || !editSeatForm.planName) {
+      if (
+        !editSeatForm.studentName ||
+        !editSeatForm.adharNumber ||
+        !editSeatForm.planName
+      ) {
         showNotification("error", "Please fill in all required fields");
         return;
       }
 
       await adminApi.updateSeat(selectedSeat, editSeatForm);
       await refreshSeats();
+
+      // Force re-render if updated seat is in current section
+      if (selectedSeat.startsWith(selectedSection)) {
+        setSelectedSection(selectedSection);
+      }
+
       showNotification("success", `Seat ${selectedSeat} updated successfully!`);
       setEditSeatModalOpen(false);
       setSelectedSeats([]);
@@ -270,7 +315,8 @@ const SeatsView: React.FC = () => {
 
   const handleAddSeat = async () => {
     try {
-      console.log("handleAddSeat called");
+      setOperationLoading(true);
+
       if (addSeatForm.addMode === "single") {
         const seatNum = parseInt(addSeatForm.singleSeatNumber, 10);
         if (isNaN(seatNum) || seatNum < 1) {
@@ -281,22 +327,49 @@ const SeatsView: React.FC = () => {
           return;
         }
 
+        // Allow expandable seating - no upper limit restrictions
+
         const seatNumber = `${addSeatForm.section}${seatNum}`;
-        console.log(`Checking for existing seat: ${seatNumber}`);
         const existingSeat = seatData.seats.find(
           (s) => s.seatNumber === seatNumber
         );
-        if (existingSeat) {
-          showNotification("error", `Seat ${seatNumber} already exists`);
+
+        // Only prevent if seat is occupied, allow "adding" available seats to refresh/initialize them
+        if (existingSeat && existingSeat.status === "Occupied") {
+          showNotification(
+            "error",
+            `Seat ${seatNumber} is already occupied by ${existingSeat.studentName}`
+          );
           return;
         }
 
-        console.log(`Adding seat: ${seatNumber}`);
+        // For available seats, still call backend to ensure they're properly initialized
+
         await adminApi.addSeat({seatNumber});
-        console.log(`Seat ${seatNumber} added, refreshing data...`);
         await refreshSeats();
-        console.log(`Data refreshed for seat ${seatNumber}`);
-        showNotification("success", `Seat ${seatNumber} added successfully!`);
+
+        // Multiple force refresh strategies to ensure UI updates
+        setOperationLoading(false);
+        await new Promise((resolve) => setTimeout(resolve, 100));
+        setOperationLoading(true);
+        await new Promise((resolve) => setTimeout(resolve, 100));
+        setOperationLoading(false);
+
+        // Also force section refresh
+        const currentSection = selectedSection;
+        setSelectedSection(currentSection === "A" ? "B" : "A");
+        await new Promise((resolve) => setTimeout(resolve, 50));
+        setSelectedSection(currentSection);
+
+        showNotification(
+          "success",
+          `Seat ${seatNumber} is ready for assignment!`
+        );
+
+        // Force re-render by updating selected section if needed
+        if (seatNumber.startsWith(selectedSection)) {
+          setSelectedSection(selectedSection);
+        }
       } else {
         const start = parseInt(addSeatForm.startNumber, 10);
         const end = parseInt(addSeatForm.endNumber, 10);
@@ -308,39 +381,65 @@ const SeatsView: React.FC = () => {
           return;
         }
 
-        const existingSeats = [];
+        // Allow expandable seating - no upper limit restrictions for bulk operations
+
+        // Check which seats in the range are already occupied (not just existing)
+        const occupiedSeats = [];
         for (let num = start; num <= end; num++) {
           const seatNumber = `${addSeatForm.section}${num}`;
           const existingSeat = seatData.seats.find(
             (s) => s.seatNumber === seatNumber
           );
-          if (existingSeat) {
-            existingSeats.push(seatNumber);
+          if (existingSeat && existingSeat.status === "Occupied") {
+            occupiedSeats.push(seatNumber);
           }
         }
 
-        if (existingSeats.length > 0) {
+        if (occupiedSeats.length > 0) {
           showNotification(
             "error",
-            `These seats already exist: ${existingSeats.join(", ")}`
+            `These seats are already occupied: ${occupiedSeats.join(", ")}`
           );
           return;
         }
 
-        console.log(`Adding seats: ${addSeatForm.section}${start} to ${addSeatForm.section}${end}`);
+        console.log(
+          `Processing seats: ${addSeatForm.section}${start} to ${addSeatForm.section}${end}`
+        );
+        const processedSeats = [];
         for (let num = start; num <= end; num++) {
           const seatNumber = `${addSeatForm.section}${num}`;
-          console.log(`Adding seat: ${seatNumber}`);
           await adminApi.addSeat({seatNumber});
+          processedSeats.push(seatNumber);
         }
-        console.log(`All seats added, refreshing data...`);
+
+        console.log(
+          `All seats processed: ${processedSeats.join(
+            ", "
+          )}, refreshing data...`
+        );
         await refreshSeats();
         console.log(`Data refreshed for seat range`);
+
+        // Force component re-render to ensure UI updates
+        setOperationLoading(false);
+        setOperationLoading(true);
+        setTimeout(() => setOperationLoading(false), 100);
+
         showNotification(
           "success",
-          `${end - start + 1} seats added successfully!`
+          `Processed ${end - start + 1} seats successfully!`
         );
+
+        // Force re-render by updating selected section if we added seats to current section
+        if (addSeatForm.section === selectedSection) {
+          setSelectedSection(selectedSection);
+        }
       }
+    } catch (e: any) {
+      showNotification("error", "Failed to process seats. Please try again.");
+    } finally {
+      setOperationLoading(false);
       setAddSeatModalOpen(false);
       setAddSeatForm({
         section: "A",
@@ -349,32 +448,47 @@ const SeatsView: React.FC = () => {
         addMode: "single",
         singleSeatNumber: "",
       });
-    } catch (e) {
-      console.error("Add seats error", e);
-      showNotification("error", "Failed to add seats");
     }
   };
 
   const refreshSeats = async () => {
     try {
-      console.log("Refreshing seat data...");
       const latest = await adminApi.getSeatManagement();
-      console.log("Refreshed seat data:", latest);
 
       if (latest?.seats) {
         setSeatData(latest);
+
+        // Force state update by clearing and resetting
+        setSeatData((prev) => ({...prev, seats: []}));
+        setTimeout(() => {
+          setSeatData(latest);
+        }, 50);
       } else {
         console.warn("Invalid seat data received during refresh");
+        // Use fallback data with expected totals
         setSeatData({
-          totalSeats: 0,
+          totalSeats: 105,
           occupiedSeats: 0,
-          availableSeats: 0,
+          availableSeats: 105,
           seats: [],
         });
       }
-    } catch (e) {
-      console.error("Seats: refresh failed", e);
-      showNotification("error", "Failed to refresh seat data");
+
+      // Force component re-render by updating loading state
+      setLoading(false);
+    } catch (e: any) {
+      showNotification(
+        "error",
+        `Failed to refresh seat data: ${e?.message || "Unknown error"}`
+      );
+
+      // Set fallback data on error to prevent broken UI
+      setSeatData({
+        totalSeats: 105,
+        occupiedSeats: 0,
+        availableSeats: 105,
+        seats: [],
+      });
     }
   };
 
@@ -469,7 +583,52 @@ const SeatsView: React.FC = () => {
       showNotification("error", "Error deallocating seat. Please try again.");
     }
   };
-  // Maintenance logic removed (not supported by backend currently)
+
+  // Database cleanup function
+  const handleDatabaseCleanup = async () => {
+    try {
+      setOperationLoading(true);
+      console.log("Starting database cleanup...");
+
+      // First check what problems exist
+      const checkResult = await adminApi.cleanupInvalidSeats("check");
+      console.log("Cleanup check result:", checkResult);
+
+      if (checkResult.message?.includes("Database is clean")) {
+        showNotification(
+          "success",
+          "Database is already clean - no problematic records found"
+        );
+        return;
+      }
+
+      // If problems found, ask user confirmation
+      const confirmCleanup = window.confirm(
+        `Found database issues: ${checkResult.message}\n\nThis will remove invalid and duplicate seat records. Continue?`
+      );
+
+      if (!confirmCleanup) {
+        return;
+      }
+
+      // Perform cleanup
+      const cleanupResult = await adminApi.cleanupInvalidSeats("cleanup");
+      console.log("Cleanup result:", cleanupResult);
+
+      showNotification(
+        "success",
+        cleanupResult.message || "Database cleanup completed"
+      );
+
+      // Refresh seat data
+      await refreshSeats();
+    } catch (error: any) {
+      console.error("Database cleanup error:", error);
+      showNotification("error", error?.message || "Failed to cleanup database");
+    } finally {
+      setOperationLoading(false);
+    }
+  };
 
   // Get current section seats
   const getCurrentSectionSeats = () => {
@@ -582,13 +741,24 @@ const SeatsView: React.FC = () => {
   if (loading) {
     return (
       <div className="p-6">
-        <div className="animate-pulse">
-          <div className="h-8 bg-gray-200 rounded w-1/4 mb-4"></div>
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4"></div>
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">
+            Loading Seat Management
+          </h2>
+          <p className="text-gray-600">Fetching seat data from server...</p>
+          <div className="mt-4 text-sm text-gray-500">
+            If this takes more than 30 seconds, please refresh the page
+          </div>
+        </div>
+        <div className="animate-pulse mt-8">
+          <div className="h-6 bg-gray-200 rounded w-1/4 mb-4"></div>
           <div className="grid grid-cols-4 gap-4 mb-6">
             {[...Array(4)].map((_, i) => (
               <div key={i} className="h-24 bg-gray-200 rounded"></div>
             ))}
           </div>
+          <div className="h-64 bg-gray-200 rounded"></div>
         </div>
       </div>
     );
@@ -678,10 +848,11 @@ const SeatsView: React.FC = () => {
           <div className="flex items-center space-x-2 flex-wrap">
             <button
               onClick={() => setAddSeatModalOpen(true)}
-              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
+              disabled={operationLoading}
+              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Plus className="w-4 h-4" />
-              <span>Add Seats</span>
+              <span>{operationLoading ? "Processing..." : "Add Seats"}</span>
             </button>
             <button
               onClick={handleEditSeat}
@@ -693,12 +864,26 @@ const SeatsView: React.FC = () => {
             {selectedSeats.length > 0 && (
               <button
                 onClick={handleBulkDeleteSeats}
-                className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors flex items-center space-x-2"
+                disabled={operationLoading}
+                className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <X className="w-4 h-4" />
-                <span>Delete Selected ({selectedSeats.length})</span>
+                <span>
+                  {operationLoading
+                    ? "Deleting..."
+                    : `Delete Selected (${selectedSeats.length})`}
+                </span>
               </button>
             )}
+            <button
+              onClick={handleDatabaseCleanup}
+              disabled={operationLoading}
+              className="bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700 transition-colors flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Clean up invalid or duplicate seat records from database"
+            >
+              <span className="text-sm">🗑️</span>
+              <span>{operationLoading ? "Cleaning..." : "Clean DB"}</span>
+            </button>
           </div>
         </div>
 
@@ -743,7 +928,10 @@ const SeatsView: React.FC = () => {
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-6 xs:grid-cols-8 sm:grid-cols-10 md:grid-cols-11 gap-2">
+          <div
+            key={`${selectedSection}-${seatData.seats.length}-${seatData.occupiedSeats}`}
+            className="grid grid-cols-6 xs:grid-cols-8 sm:grid-cols-10 md:grid-cols-11 gap-2"
+          >
             {generateSeatGrid(selectedSection).map((seat) => (
               <div key={seat.number} className="relative group">
                 <div className="flex items-center space-x-1">
@@ -786,7 +974,10 @@ const SeatsView: React.FC = () => {
           </h3>
         </div>
         <div className="overflow-x-auto -mx-3 sm:mx-0">
-          <table className="min-w-full text-[11px] sm:text-sm">
+          <table
+            key={`table-${seatData.seats.length}-${seatData.occupiedSeats}`}
+            className="min-w-full text-[11px] sm:text-sm"
+          >
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-4 sm:px-6 py-3 text-left text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wider">

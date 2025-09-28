@@ -239,8 +239,10 @@ export const adminApi = {
     }>(`/seat/${seatNumber}`, {
       method: "DELETE",
     }),
-  cleanupInvalidSeats: () =>
-    apiRequest<{message: string; invalidSeats?: any[]}>("/seats/cleanup"),
+  cleanupInvalidSeats: (action = "check") =>
+    apiRequest<{message: string; problems?: any; cleaned?: any}>(
+      `/seats/cleanup?action=${action}`
+    ),
   initializeDefaultSeats: () =>
     apiRequest<{message: string; sectionBSeats: number}>("/seats/initialize", {
       method: "POST",
