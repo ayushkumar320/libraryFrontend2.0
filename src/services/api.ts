@@ -4,7 +4,7 @@ if (!BASE_URL) {
   if (import.meta.env.DEV) {
     // Assume local backend default port if not provided
     BASE_URL =
-      "https://project-beta-backend-library-manage.vercel.app/api/admin";
+      "https://project-beta-backend-library-manage-self.vercel.app/api/admin";
   } else {
     // Production relative (assumes reverse proxy /api/admin)
     BASE_URL = "/api/admin";

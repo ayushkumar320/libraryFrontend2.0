@@ -1,6 +1,6 @@
 // Quick test script to check API endpoints
 const BASE_URL =
-  "https://project-beta-backend-library-manage.vercel.app/api/admin";
+  "https://project-beta-backend-library-manage-self.vercel.app/api/admin";
 
 async function testLogin() {
   try {
