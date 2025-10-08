@@ -68,12 +68,17 @@ const features = [
 
 const Home: React.FC = () => {
   const [copied, setCopied] = useState(false);
+  const [copiedNumber, setCopiedNumber] = useState("");
 
-  const copyPhoneNumber = async () => {
+  const copyPhoneNumber = async (phoneNumber: string) => {
     try {
-      await navigator.clipboard.writeText("6207694500");
+      await navigator.clipboard.writeText(phoneNumber);
       setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      setCopiedNumber(phoneNumber);
+      setTimeout(() => {
+        setCopied(false);
+        setCopiedNumber("");
+      }, 2000);
     } catch (err) {
       console.error("Failed to copy phone number:", err);
     }
@@ -136,31 +141,47 @@ const Home: React.FC = () => {
                 </a>
               </div>
 
-              {/* Contact Phone Number */}
-              <div className="mt-6 flex flex-wrap gap-3 items-center">
-                <div className="flex items-center gap-2 text-gray-600">
+              {/* Contact Phone Numbers */}
+              <div className="mt-6">
+                <div className="flex items-center gap-2 text-gray-600 mb-3">
                   <Phone className="w-5 h-5 text-blue-600" />
                   <span className="text-sm font-medium">Contact us:</span>
                 </div>
-                <button
-                  onClick={copyPhoneNumber}
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-50 hover:bg-blue-100 border border-blue-200 transition group"
-                  title="Click to copy phone number"
-                >
-                  <span className="font-semibold text-blue-800">
-                    6207694500
-                  </span>
-                  {copied ? (
-                    <Check className="w-4 h-4 text-green-600" />
-                  ) : (
-                    <Copy className="w-4 h-4 text-blue-600 group-hover:text-blue-800" />
+                <div className="flex flex-wrap gap-3 items-center">
+                  <button
+                    onClick={() => copyPhoneNumber("6206283852")}
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-50 hover:bg-blue-100 border border-blue-200 transition group"
+                    title="Click to copy phone number"
+                  >
+                    <span className="font-semibold text-blue-800">
+                      6206283852
+                    </span>
+                    {copied && copiedNumber === "6206283852" ? (
+                      <Check className="w-4 h-4 text-green-600" />
+                    ) : (
+                      <Copy className="w-4 h-4 text-blue-600 group-hover:text-blue-800" />
+                    )}
+                  </button>
+                  <button
+                    onClick={() => copyPhoneNumber("+91 6513140591")}
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-50 hover:bg-blue-100 border border-blue-200 transition group"
+                    title="Click to copy phone number"
+                  >
+                    <span className="font-semibold text-blue-800">
+                      +91 6513140591
+                    </span>
+                    {copied && copiedNumber === "+91 6513140591" ? (
+                      <Check className="w-4 h-4 text-green-600" />
+                    ) : (
+                      <Copy className="w-4 h-4 text-blue-600 group-hover:text-blue-800" />
+                    )}
+                  </button>
+                  {copied && (
+                    <span className="text-sm text-green-600 font-medium">
+                      Phone number copied!
+                    </span>
                   )}
-                </button>
-                {copied && (
-                  <span className="text-sm text-green-600 font-medium">
-                    Phone number copied!
-                  </span>
-                )}
+                </div>
               </div>
             </div>
             <div
@@ -255,7 +276,8 @@ const Home: React.FC = () => {
             <h2 className="text-3xl font-bold">Find Us</h2>
             <p className="mt-2 text-gray-600 flex items-center gap-2">
               <MapPin className="w-5 h-5 text-blue-600" /> NaiUdaan Library —
-              Singh More, Hatiya (First Floor)
+              Ist Floor, Mahavir Market, Nai Udaan Library
+              (Beside Ratna Priya Apartment) Latma Road, Singh More, Ranchi-834003
             </p>
           </div>
           <div className="mt-8 rounded-2xl overflow-hidden border border-gray-200 bg-white">
@@ -275,7 +297,7 @@ const Home: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <p className="text-gray-600">
-              © {new Date().getFullYear()} NaiUdaan Library | Contact Us: 6206283852
+              © {new Date().getFullYear()} NaiUdaan Library | Contact Us: +91 6513140591
             </p>
             <div className="flex items-center gap-3">
               <a
